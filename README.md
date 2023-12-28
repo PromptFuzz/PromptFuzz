@@ -34,7 +34,7 @@ There are the uniquely interesting bugs detected by PromptFuzz:
 | 9.          | libpng           | png_read_row                            | TimeOut                | Waiting         | [492](https://github.com/glennrp/libpng/issues/492)               |
 | 10.         | libmagic         | apprentice_map                          | Buffer Overflow                | Waiting         | [481](https://bugs.astron.com/view.php?id=481)               |
 | 11.         | libmagic         | magic_setparam                          | Buffer Overflow                | Waiting         | [482](https://bugs.astron.com/view.php?id=482)               |
-| 12.         | libmagic         | check_buffer                            | Buffer Overflow                | Waiting         | [483](https://bugs.astron.com/view.php?id=483)               |
+| 12.         | libmagic         | check_buffer                            | Buffer Overflow                | Confirmed         | [483](https://bugs.astron.com/view.php?id=483)               |
 | 13.         | libmagic         | mget                                    | Integer Overflow                | Waiting         | [486](https://bugs.astron.com/view.php?id=486)               |
 | 14.         | libTIFF          | TIFFOpen                                | OOM               | Confirmed       | [614](https://gitlab.com/libtiff/libtiff/-/issues/614)               |
 | 15.         | libTIFF          | PixarLogSetupDecode                     | OOM               | Confirmed       | [619](https://gitlab.com/libtiff/libtiff/-/issues/619)               |
@@ -53,6 +53,6 @@ There are the uniquely interesting bugs detected by PromptFuzz:
 | 28.         | libpcap          | pcapint_create_interface                | Null Pointer crash                | Confirmed       | [1239](https://github.com/the-tcpdump-group/libpcap/issues/1239)              |
 | 29.         | libpcap          | pcapint_fixup_pcap_pkthdr               | Misaligned Address               | Confirmed       | -                 |
 | 30.         | cJSON            | cJSON_ParseWithLengthOpts               | Buffer Overflow                | Waiting         | [804](https://github.com/DaveGamble/cJSON/issues/804)               |
-| 31.         | cJSON            | cJSON_SetNumberHelper                   | Error Cast                | Waiting         | [805](https://github.com/DaveGamble/cJSON/issues/805)               |
+| 31.         | cJSON            | cJSON_SetNumberHelper                   | Error Cast                | Confirmed         | [805](https://github.com/DaveGamble/cJSON/issues/805)               |
 | 32.         | cJSON            | cJSON_CreateNumber                      | Error Cast                | Confirmed       | [806](https://github.com/DaveGamble/cJSON/issues/806)               |
 | 33.         | cJSON            | cJSON_DeleteItemFromObjectCaseSensitive | TimeOut                | Confirmed       | [807](https://github.com/DaveGamble/cJSON/issues/807)               |
