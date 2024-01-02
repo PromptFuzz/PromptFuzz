@@ -3,6 +3,8 @@ PromtFuzz is an automated tool that generates high-quality fuzz drivers for libr
 
 ![workflow](workflow.png)
 
+Techincal Paper: [PDF](https://arxiv.org/pdf/2312.17677.pdf)
+
 ## Features
 - **Multiply LLM support**: Codex, Inocder, ChatGPT and GPT4 (Current only tested on ChatGPT).
 - **Context based Prompt**: Construct LLMs' prompts with the library knowledge required by API combinations.
