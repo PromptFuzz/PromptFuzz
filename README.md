@@ -184,7 +184,6 @@ We also provide a harness named `harness` to facilitate you access some core com
 
 Here is the command input of `harness`:
 ```
-
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// check a program whether is correct.
@@ -194,7 +193,7 @@ enum Commands {
     /// transform a program to a fuzzer.
     Transform {
         program: PathBuf,
-        #[arg(short, default_value = "false")]
+        #[arg(short, default_value = "true")]
         use_cons: bool,
         /// corpora used to perform transform check
         #[arg(short = 'p', default_value = "None")]
@@ -203,7 +202,7 @@ enum Commands {
     /// Fuse the programs in seeds to fuzzers.
     FuseFuzzer {
         /// transfrom fuzzer with constaints
-        #[arg(short, default_value = "false")]
+        #[arg(short, default_value = "true")]
         use_cons: bool,
         /// the number of condensed fuzzer you want to fuse
         #[arg(short, default_value = "1")]
@@ -216,22 +215,24 @@ enum Commands {
     /// Run a synthesized fuzzer in the fuzz dir.
     FuzzerRun {
         /// which fuzzer you want to run. default is "output/$Library/fuzzers"
-        #[arg(short = 'u')]
+        #[arg(short = 'u', default_value = "true")]
         use_cons: bool,
         /// the amount of time you wish your fuzzer to run. The default is 86400s (24 hours), the unit is second. 0 is for unlimit.
         time_limit: Option<u64>,
+        /// whether minimize the fuzzing corpus before running
+        minimize: Option<bool>,
     },
     /// collect code coverage
     Coverage {
         /// Coverage kind to collect
         kind: CoverageKind,
         /// -u means the exploit fuzzers
-        #[arg(short = 'u')]
+        #[arg(short = 'u', default_value = "true")]
         exploit: bool,
     },
     Compile {
         kind: Compile,
-        #[arg(short = 'u')]
+        #[arg(short = 'u', default_value = "true")]
         exploit: bool,
     },
     /// infer constriants
@@ -240,7 +241,7 @@ enum Commands {
     Minimize,
     /// Sanitize duplicate and spurious crashes
     SanitizeCrash {
-        #[arg(short = 'u', default_value = "false")]
+        #[arg(short = 'u', default_value = "true")]
         exploit: bool,
     },
     /// archive the results
