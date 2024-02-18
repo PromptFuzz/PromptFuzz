@@ -1,0 +1,5 @@
+project_name: libvpx
+static_lib_name: libvpx.a
+dyn_lib_name: libvpx.so
+ban:
+  - vpx_codec_control_\w+

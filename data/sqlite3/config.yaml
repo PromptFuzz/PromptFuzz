@@ -1,0 +1,14 @@
+project_name: sqlite3
+static_lib_name: libsqlite3.a
+dyn_lib_name: libsqlite3.so
+ban:
+  ~
+init: "
+extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  sqlite3* db;
+  int rc = sqlite3_open(\":memory:\", &db);
+  if (rc != SQLITE_OK) {
+  sqlite3_close(db); 
+  return 0;
+  }
+  // complete here"
