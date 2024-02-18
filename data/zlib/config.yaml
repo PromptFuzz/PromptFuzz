@@ -1,0 +1,5 @@
+project_name: zlib
+static_lib_name: libz.a
+dyn_lib_name: libzlib.so
+ban:
+  - gzvprintf

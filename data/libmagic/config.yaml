@@ -1,0 +1,27 @@
+project_name: libmagic
+static_lib_name: libmagic.a
+dyn_lib_name: libmagic.so
+ban:
+  ~
+extra_c_flags: 
+  - -lz
+  - -lzstd
+  - -lbz2
+  - -llzma
+  - -llz4
+desc: Libmagic is the open source implementation of the `file` command that ships with most free operating systems. It tells you in words what kind of data a file contains.
+# The statements used to initialize the library.
+init: "
+extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  magic = magic_open(MAGIC_NONE);
+	if (magic == NULL) {
+		return -1;
+	}
+	// The magic file name is \"magic\"
+	if (magic_load(magic, \"magic\") == -1) {
+		magic_close(magic);
+		return -1;
+	}
+  // complete here"
+# The additional initialization file used in setup.
+init_file: magic.mgc

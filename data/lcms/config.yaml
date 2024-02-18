@@ -1,0 +1,6 @@
+project_name: lcms
+static_lib_name: liblcms2.a
+dyn_lib_name: liblcms2.so
+ban:
+  ~
+desc: LCMS is an open-source color management system that supports various color spaces and is widely used in the printing and publishing industries.

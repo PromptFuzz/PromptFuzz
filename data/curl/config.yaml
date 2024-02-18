@@ -1,0 +1,11 @@
+project_name: curl
+static_lib_name: libcurl.a
+dyn_lib_name: libcurl.so
+ban:
+  ~
+extra_c_flags: 
+  - -lssl
+  - -lnghttp2
+  - -lz
+  - -lzstd
+desc: Libcurl is the library of curl. It is a free and user-friendly library for client-side URL transfer that supports a wide range of protocols including HTTP, FTP, SMTP, and more. It also provides features such as SSL certificates, HTTP POST, HTTP PUT, file transfer resume, HTTP proxy tunneling, and user authentication.

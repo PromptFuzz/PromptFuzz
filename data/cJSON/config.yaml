@@ -1,0 +1,8 @@
+project_name: cjson
+static_lib_name: libcjson.a
+dyn_lib_name: libcjson.so
+ban:
+  - cJSON_InitHooks
+  - cJSON_GetErrorPtr
+null_term: true
+landmark: true
