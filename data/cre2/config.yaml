@@ -1,6 +1,0 @@
-project_name: cre2
-static_lib_name: libcre2.a
-dyn_lib_name: libcre2.so
-ban:
-  ~ 
-desc: Cre2 is the offical C language wrapper for RE2 the regular expressions library from Google.

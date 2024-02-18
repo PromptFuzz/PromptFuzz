@@ -1,6 +1,0 @@
-project_name: libjpeg
-static_lib_name: libjpeg.a
-dyn_lib_name: libjpeg.so
-ban:
-  ~
-desc: It contains the de facto industry-standard APIs for compressing and decompressing JPEG images.

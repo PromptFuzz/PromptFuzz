@@ -1,6 +1,0 @@
-project_name: c-ares
-static_lib_name: libcares.a
-dyn_lib_name: libcares.so
-ban:
-  ~
-null_term: true

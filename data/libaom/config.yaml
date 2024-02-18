@@ -1,5 +1,0 @@
-project_name: libaom
-static_lib_name: libaom.a
-dyn_lib_name: libaom.so
-ban:
-  - aom_codec_control_\w+
