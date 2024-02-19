@@ -27,5 +27,5 @@ RUN mkdir -p /prompt_fuzz
 ADD ./data/ /prompt_fuzz/data
 ADD ./src/ /prompt_fuzz/src
 ADD ./testsuites /prompt_fuzz/testsuites
-ADD Cargo.lock Cargo.toml /prompt_fuzz
+ADD Cargo.lock Cargo.toml /prompt_fuzz/
 WORKDIR /prompt_fuzz
