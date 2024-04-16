@@ -1,4 +1,4 @@
-use std::process::Child;
+use std::{process::Child, time::Duration};
 
 use crate::{
     config::{self, get_config, LLMModel},
@@ -103,11 +103,13 @@ fn get_client() -> Result<&'static Client> {
     // read OpenAI API key form the env var (OPENAI_API_KEY).
     pub static CLIENT: OnceCell<Client> = OnceCell::new();
     let client = CLIENT.get_or_init(|| {
-        if let Some(proxy) = get_openai_proxy() {
+        let http_client = reqwest::ClientBuilder::new().connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(60)).build().unwrap();
+        let client = if let Some(proxy) = get_openai_proxy() {
             Client::new().with_api_base(proxy)
         } else {
             Client::new()
-        }
+        };
+        client.with_http_client(http_client)
     });
     Ok(client)
 }
