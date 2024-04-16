@@ -39,13 +39,13 @@ function build_absl() {
     #For ABSL, we must built it with the same flags passed to fuzzers. ABI mismatch: https://github.com/abseil/abseil-cpp/issues/1524
     rm -rf build
     mkdir -p build && cd build
-    cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX=$INSTALLDIR -DCMAKE_INSTALL_LIBDIR=$INSTALLDIR/lib .. && make && make install    
+    cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX=$INSTALLDIR -DCMAKE_INSTALL_LIBDIR=$INSTALLDIR/lib .. && make -j$(nproc) && make install    
     popd
 }
 
 function build_lib() {
     export INSTALLDIR=$WORK
-    mkdir -p $WORK
+    mkdir -p $WORKw
     LIB_STORE_DIR=$INSTALLDIR/lib
     rm $INSTALLDIR/lib
 

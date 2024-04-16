@@ -59,7 +59,7 @@ function build_oss_fuzz() {
     for f in $(find $SRC -name '*_fuzzer.c'); do
         b=$(basename -s .c $f)
         $CC $CFLAGS -I. $f -c -o /tmp/$b.o
-        $CXX $CXXFLAGS -o $OUT/$b /tmp/$b.o -stdlib=libc++ $LIB_FUZZING_ENGINE ./libz.a
+        $CXX $CXXFLAGS -o $OUT/$b /tmp/$b.o $LIB_FUZZING_ENGINE ./libz.a
         rm -f /tmp/$b.o
         ln -sf $OUT/seed_corpus.zip $OUT/${b}_seed_corpus.zip
     done

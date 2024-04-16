@@ -8,7 +8,7 @@ ENV PATH=/lib/llvm-15/bin:/usr/local/cargo/bin:/root/.cargo/bin:$PATH \
     DOCKER_CONTAINER=1
 
 RUN apt-get update \
-    && apt-get -y install build-essential wget curl cmake git unzip patchelf graphviz python3 python3-pip lsb-release software-properties-common gnupg file libssl-dev openssl pkg-config libfontconfig libfontconfig1-dev \
+    && apt-get -y install build-essential wget curl cmake git unzip patchelf graphviz python3 python3-pip lsb-release software-properties-common gnupg file libssl-dev openssl pkg-config libfontconfig libfontconfig1-dev zip \
     && apt-get clean \
     && pip3 install wllvm
 

@@ -10,7 +10,7 @@ DIR=$(pwd)
 
 function download() {
     if [[ ! -z "${DOCKER_CONTAINER:-}" ]]; then
-        apt-get update && apt-get install -y cmake yasm wget
+        apt-get update && apt-get install -y cmake yasm wget zip
     fi
     cd $SRC
     if [ -x "$(command -v coscli)" ]; then
