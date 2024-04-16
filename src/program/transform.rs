@@ -671,7 +671,7 @@ impl<'a> Transformer<'a> {
         let constraint = fuzz_varaint.get_constraint();
 
         let arg = crate::ast::utils::get_nth_arg(call, *arg_pos)?;
-        let ty = get_func_gadget(&call_name)
+        let ty = get_func_gadget(call_name)
             .unwrap()
             .get_canonical_arg_type(*arg_pos)
             .unwrap();
@@ -1292,7 +1292,7 @@ fn collect_fuzzable_array_args(
         .to_vec();
     let const_array_pos: Vec<&usize> = const_array_pos
         .iter()
-        .filter(|array_pos| !filter_constrained_array_args(constraints, &call_name, array_pos))
+        .filter(|array_pos| !filter_constrained_array_args(constraints, call_name, array_pos))
         .collect();
     let mut fuzz_args = Vec::new();
     for arg_pos in const_array_pos {
@@ -1322,13 +1322,13 @@ fn collect_fuzzable_integer_args(
     visitor: &Visitor,
 ) -> Vec<FuzzVariant> {
     // get the positions of integer (scalar) type parameters of this API call.
-    let integeral_pos = get_func_gadget(&call_name)
+    let integeral_pos = get_func_gadget(call_name)
         .unwrap()
         .get_integer_params_pos();
     // filter out the positions inferred with constraints.
     let integeral_pos: Vec<&usize> = integeral_pos
         .iter()
-        .filter(|x| !filter_constrained_integer_args(constraints, &call_name, x))
+        .filter(|x| !filter_constrained_integer_args(constraints, call_name, x))
         .collect();
     let mut fuzz_args = Vec::new();
     for arg_pos in integeral_pos {
@@ -1533,7 +1533,7 @@ pub mod utils {
                 if let Clang::CallExpr(ce) = &call.kind {
                     let mut arg_match = false;
                     let args = ce.get_childs(call);
-                    if let Some(array_arg) = args.get(0) {
+                    if let Some(array_arg) = args.first() {
                         if let Clang::DeclRefExpr(dre) = &array_arg.kind {
                             let fread_buf_name = dre.get_name_as_string();
                             if arg_name == fread_buf_name {
@@ -1578,7 +1578,7 @@ pub mod utils {
                 }
 
                 if let Clang::DeclRefExpr(dre) = &arg.kind {
-                    if let Some(init) = dre.get_var_init(&visitor) {
+                    if let Some(init) = dre.get_var_init(visitor) {
                         if matches!(
                             &init.kind,
                             Clang::CallExpr(_) | Clang::CXXNewExpr(_) | Clang::CXXMemberCallExpr

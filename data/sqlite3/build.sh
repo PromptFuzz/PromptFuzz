@@ -18,7 +18,7 @@ function download() {
         coscli cp cos://sbd-testing-1251316161/bench_archive/LLM_FUZZ/archives/sqlite3.tar.gz sqlite3.tar.gz
         tar -xvf sqlite3.tar.gz && rm sqlite3.tar.gz
     else
-        curl 'https://www.sqlite.org/src/tarball/sqlite.tar.gz'
+        git clone --depth 1 https://github.com/sqlite/sqlite.git
     fi
     mv sqlite $PROJECT_NAME
 }

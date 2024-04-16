@@ -31,7 +31,7 @@ impl CommomHelper for Node {
             Clang::TranslationUnitDecl
             | Clang::CompoundLiteralExpr
             | Clang::MaterializeTemporaryExpr
-            | Clang::ExprWithCleanups => self.inner.get(0).unwrap().ignore_parent(),
+            | Clang::ExprWithCleanups => self.inner.first().unwrap().ignore_parent(),
             _ => self,
         }
     }
@@ -68,7 +68,7 @@ impl CommomHelper for Node {
     /// Get the signle child. You must make sure this kind of stmt only has a single child.
     fn get_child(&self) -> &Self {
         assert_eq!(self.inner.len(), 1);
-        self.inner.get(0).unwrap()
+        self.inner.first().unwrap()
     }
 
     fn get_child_mut(&mut self) -> &mut Self {

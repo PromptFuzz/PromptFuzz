@@ -204,7 +204,7 @@ impl Program {
     }
 
     pub fn update_quality(&mut self, unique_branches:  HashMap<String, Vec<Branch>>, deopt: &Deopt) -> Result<()> {
-        let mut quality = self.compute_quality(&deopt)?;
+        let mut quality = self.compute_quality(deopt)?;
         quality.set_unique_branches(unique_branches);
         self.set_quality(quality.clone());
         Ok(())

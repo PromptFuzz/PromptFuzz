@@ -125,7 +125,7 @@ impl<'a> BranchCounter<'a> {
         if !acc_file.exists() {
             eyre::bail!("seed accumulated coverage file not found");
         }
-        let executor = Executor::new(&self.deopt)?;
+        let executor = Executor::new(self.deopt)?;
         let code_coverage =  executor.obtain_cov_from_profdata(&acc_file)?;
         let branch_count = code_coverage.get_covered_branch().len();
         Ok(branch_count)

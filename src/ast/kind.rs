@@ -91,7 +91,7 @@ impl<'a> VarDecl {
     pub fn get_init(&self, node: &'a Node) -> &'a Node {
         assert!(self.has_init(node));
         assert_eq!(node.inner.len(), 1);
-        node.inner.get(0).unwrap()
+        node.inner.first().unwrap()
     }
 
     /// get the var declaration of this var, e.g., const char* name.
@@ -124,7 +124,7 @@ pub struct CallExpr {
 impl CallExpr {
     pub fn get_name_as_string(&self, node: &Node) -> String {
         assert!(!node.inner.is_empty());
-        let fd = node.inner.get(0).unwrap().ignore_cast();
+        let fd = node.inner.first().unwrap().ignore_cast();
         if let Clang::DeclRefExpr(dre) = &fd.kind {
             return dre.get_name_as_string();
         }
@@ -615,7 +615,7 @@ impl<'a> BinaryOperator {
     }
 
     pub fn get_lhs(&self, node: &'a Node) -> &'a Node {
-        node.inner.get(0).unwrap()
+        node.inner.first().unwrap()
     }
 
     pub fn get_rhs(&self, node: &'a Node) -> &'a Node {
@@ -663,7 +663,7 @@ pub struct ArraySubscriptExpr {
 
 impl<'a> ArraySubscriptExpr {
     pub fn get_lhs(&self, node: &'a Node) -> &'a Node {
-        node.inner.get(0).unwrap()
+        node.inner.first().unwrap()
     }
 
     pub fn get_rhs(&self, node: &'a Node) -> &'a Node {
@@ -1028,7 +1028,7 @@ impl EnumConstantDecl {
     }
 
     pub fn get_const_value(&self, node: &Node) -> Option<i32> {
-        if let Some(child) = node.inner.get(0) {
+        if let Some(child) = node.inner.first() {
             if let Clang::ConstantExpr(ce) = &child.kind {
                 return Some(ce.parse_int());
             }

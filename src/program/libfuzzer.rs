@@ -202,7 +202,7 @@ impl LibFuzzer {
         crate::deopt::utils::create_dir_if_nonexist(&fuzzer_dir)?;
         // write the condensed fuzzer
         let fuzzer_path: PathBuf = [fuzzer_dir.clone(), "fuzzer.cc".into()].iter().collect();
-        std::fs::write(fuzzer_path, &fuzzer_content)?;
+        std::fs::write(fuzzer_path, fuzzer_content)?;
 
         for (id, driver) in drivers.iter().enumerate() {
             // write each unit driver with new driver id.
@@ -468,7 +468,7 @@ fn parse_artifact_from_log(fuzz_log: &Path) -> Result<Vec<u8>> {
 
     let mut err_buf = Vec::new();
     for line in log_str.lines().rev() {
-        if let Some(c) = line.chars().nth(0) {
+        if let Some(c) = line.chars().next() {
             if c == '#' {
                 break;
             }

@@ -1,5 +1,9 @@
+use std::{path::PathBuf, time::{self, Instant}};
+
 use eyre::Result;
+use once_cell::sync::OnceCell;
 use regex::{Captures, Regex};
+
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum ProgramError {
@@ -298,4 +302,93 @@ impl ProgramLogger {
             self.sc.other
         );
     }
+}
+
+pub struct TimeUsage {
+    start: Instant,
+    dir: PathBuf
+}
+
+impl TimeUsage {
+    pub fn new(dir: PathBuf) -> Self {
+        let mut dir = dir.clone();
+        dir.push("time_usage");
+        crate::deopt::utils::create_dir_if_nonexist(&dir).unwrap_or_else(|_| panic!("create dir failed! {dir:?}"));
+        Self { start: time::Instant::now(), dir }
+    }
+
+    fn get_ty_usage_file(&self, ty: &str) -> PathBuf {
+        let mut save_path = self.dir.clone();
+        save_path.push(ty);
+        save_path.set_extension("cost");
+        save_path
+    }
+
+    pub fn log(&self, ty: &str) -> eyre::Result<()> {
+        let usage = time::Instant::elapsed(&self.start).as_secs_f32();
+        let save_path = self.get_ty_usage_file(ty);
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(save_path)?;
+        std::io::Write::write_fmt(&mut file, format_args!("{}", usage))?;
+        Ok(())
+    }
+
+    pub fn load(&self, ty: &str) -> eyre::Result<f32> {
+        let log_path = self.get_ty_usage_file(ty);
+        if !log_path.exists() {
+            return Ok(0_f32);
+        }
+        let buf = std::fs::read_to_string(log_path)?;
+        let usage: f32 = buf.parse()?;
+        Ok(usage)
+    }
+}
+
+/// GlobalTimeLogger is used to log and analyze the time cost of each submodule of PromptFuzz.
+#[derive(Debug, Default)]
+pub struct GlobalTimeLogger {
+    req: f32,
+    syntax: f32,
+    link: f32,
+    execute: f32,
+    fuzz: f32,
+    coverage: f32,
+    update: f32
+}
+
+impl GlobalTimeLogger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn inc_req(&mut self, req: f32) {
+        self.req += req;
+        log::debug!("Global LLM generate time: {}s", self.req);
+    }
+
+    pub fn inc_san(&mut self, syntax: f32, link: f32, execute: f32, fuzz: f32, coverage: f32, update: f32) {
+        self.syntax += syntax;
+        self.link += link;
+        self.execute += execute;
+        self.fuzz += fuzz;
+        self.coverage += coverage;
+        self.update += update;
+        log::debug!("Global sanitization time cost: syntax: {}s, link: {}s, execute: {}s, fuzz: {}s, coverage: {}s, update: {}s", self.syntax, self.link, self.execute, self.fuzz, self.coverage, self.update);
+    }
+}
+
+pub static mut GTL: OnceCell<GlobalTimeLogger> = OnceCell::new();
+
+pub fn init_gtl() {
+    unsafe { GTL.set(GlobalTimeLogger::new()).unwrap() };
+}
+
+pub fn get_gtl() -> &'static GlobalTimeLogger {
+    unsafe { GTL.get().expect("GTL should not be None") }
+}
+
+pub fn get_gtl_mut() -> &'static mut GlobalTimeLogger {
+    unsafe { GTL.get_mut().expect("GTL should not be None") }
 }

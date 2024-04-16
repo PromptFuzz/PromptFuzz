@@ -504,28 +504,28 @@ pub mod utils {
     fn get_call_arg_node_type(arg: &Node) -> String {
         match &arg.kind {
             Clang::ImplicitCastExpr(ic) => {
-                return ic.r#type.get_type_name();
+                ic.r#type.get_type_name()
             }
             Clang::CStyleCastExpr(ce) => {
-                return ce.r#type.get_type_name();
+                ce.r#type.get_type_name()
             }
             Clang::IntegerLiteral(il) => {
-                return il.r#type.get_type_name();
+                il.r#type.get_type_name()
             }
             Clang::StringLiteral(sl) => {
-                return sl.r#type.get_type_name();
+                sl.r#type.get_type_name()
             }
             Clang::CharacterLiteral(cl) => {
-                return cl.r#type.get_type_name();
+                cl.r#type.get_type_name()
             }
             Clang::InitListExpr(ile) => {
-                return ile.r#type.get_type_name();
+                ile.r#type.get_type_name()
             }
             Clang::UnaryExprOrTypeTraitExpr(_) => {
-                return String::from("size_t");
+                String::from("size_t")
             }
             Clang::DeclRefExpr(dre) => {
-                return dre.get_type_name();
+                dre.get_type_name()
             }
             Clang::UnaryOperator(ue) => {
                 if ue.is_minus() {
