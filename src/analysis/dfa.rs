@@ -235,7 +235,7 @@ impl<T: SymbolData> Analyzer<T> {
             ast::Clang::ParenExpr(_) => {
                 assert!(!stmt.inner.is_empty());
                 if stmt.inner.len() == 1 {
-                    let child = stmt.inner.get(0).unwrap();
+                    let child = stmt.inner.first().unwrap();
                     self.get_rvalue(child)?
                 } else {
                     self.env_mgr.create_dummy_object()

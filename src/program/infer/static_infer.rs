@@ -481,7 +481,7 @@ mod utils {
 
     pub fn is_file_descriptor(arg: &Node, visitor: &Visitor) -> bool {
         let arg = strip_prefix(arg);
-        let fd_producer = vec!["open", "fileno", "fuzz_fileno"];
+        let fd_producer = ["open", "fileno", "fuzz_fileno"];
         if let Clang::CallExpr(ce) = &arg.kind {
             let name = ce.get_name_as_string(arg);
             if fd_producer.contains(&name.as_str()) {

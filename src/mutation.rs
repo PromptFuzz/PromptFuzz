@@ -101,16 +101,16 @@ fn prompt_crossover(prompt1: Vec<String>, prompt2: Vec<String>) -> Vec<String>{
             let max_index = prompt1.len() - prompt2.len();
             let prompt2_len = prompt2.len();
             let index: usize = get_global_rng().gen::<usize>() % max_index;
-            return crossover(prompt1, prompt2, index, 0, prompt2_len);
+            crossover(prompt1, prompt2, index, 0, prompt2_len)
         } else {
             let max_index1 = prompt1.len() - 3;
             let max_index2 = prompt2.len() - 3;
             let index1 = get_global_rng().gen::<usize>() % max_index1;
             let index2 = get_global_rng().gen::<usize>() % max_index2;
-            return crossover(prompt1, prompt2, index1, index2, 3);
+            crossover(prompt1, prompt2, index1, index2, 3)
         }
     } else {
-        return prompt_crossover(prompt2, prompt1);
+        prompt_crossover(prompt2, prompt1)
     }
 }
 

@@ -276,7 +276,7 @@ impl Transformer<'_> {
         while !worklist.empty() {
             let curr = worklist.pop();
             if let Clang::IfStmt(_) = &curr.kind {
-                if let Some(cond) = curr.inner.get(0) {
+                if let Some(cond) = curr.inner.first() {
                     // if the condition is a setjmp call
                     if is_setjmp_call(cond) {
                         if let Some(body) = curr.inner.get(1) {

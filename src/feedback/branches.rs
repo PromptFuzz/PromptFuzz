@@ -210,7 +210,7 @@ impl GlobalBranches {
 
     pub fn check_branch_states(
         global_states: &FuncBranches,
-        func_branches: &Vec<BranchState>,
+        func_branches: &[BranchState],
     ) -> Vec<BranchState> {
         let global_states = global_states.get_branches();
         assert_eq!(global_states.len(), func_branches.len());

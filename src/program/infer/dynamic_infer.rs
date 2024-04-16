@@ -69,7 +69,7 @@ impl Executor {
         )?;
 
         let corpus: PathBuf = [check_dir, "corpus".into()].iter().collect();
-        let max_total_time = format!("-max_total_time=60");
+        let max_total_time = "-max_total_time=60".to_string();
         let mut extra_args = vec![corpus.as_os_str().to_os_string(), OsString::from(max_total_time)];
         let dict = self.deopt.get_library_build_dict_path().unwrap();
         if dict.exists() {
@@ -77,11 +77,9 @@ impl Executor {
             extra_args.push(OsString::from(dict_arg));
         }
         let has_err = self.execute(&fuzz_binary, extra_args, vec![], None, None, false)?;
-        if let Some(err) = &has_err {
-            if let ProgramError::Hang(err_msg) = err {
-                if err_msg.starts_with("Execute hang!") {
-                    return Ok(None);
-                }
+        if let Some(ProgramError::Hang(err_msg)) = &has_err {
+            if err_msg.starts_with("Execute hang!") {
+                return Ok(None);
             }
         }
         Ok(has_err)
@@ -130,8 +128,8 @@ pub fn infer_constraint_for_func(
 ) -> Result<Option<Constraint>> {
     let gadget = get_func_gadget(func).expect("expect a gadget");
     if let Some(arg_ty) = gadget.get_canonical_arg_type(arg_pos) {
-        let max_value = get_integer_ty_max(&arg_ty);
-        let min_value = get_integer_ty_min(&arg_ty);
+        let max_value = get_integer_ty_max(arg_ty);
+        let min_value = get_integer_ty_min(arg_ty);
         let magic_value = format!("({max_value} + {min_value}) / 0x2000");
         let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &max_value)?;
         if has_err.is_some() {
@@ -249,7 +247,7 @@ fn eval_api_cov_map(deopt: &Deopt) -> Result<APICovRank> {
             if !seed_program.get_quality().library_calls.contains(api) {
                 continue;
             }
-            let entry = global_rank.entry(api.to_string()).or_insert(vec![]);
+            let entry = global_rank.entry(api.to_string()).or_default();
             entry.push((*cov, seed_id));
         }
     }

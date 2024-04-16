@@ -347,7 +347,7 @@ impl TimeUsage {
 }
 
 /// GlobalTimeLogger is used to log and analyze the time cost of each submodule of PromptFuzz.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GlobalTimeLogger {
     req: f32,
     syntax: f32,
@@ -360,7 +360,7 @@ pub struct GlobalTimeLogger {
 
 impl GlobalTimeLogger {
     pub fn new() -> Self {
-        Self { req: 0_f32, syntax: 0_f32, link: 0_f32, execute: 0_f32, fuzz: 0_f32, coverage: 0_f32, update: 0_f32 }
+        Self::default()
     }
 
     pub fn inc_req(&mut self, req: f32) {

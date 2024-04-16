@@ -13,7 +13,11 @@ use std::{
 
 use self::utils::cleanup_sanitize_dir;
 
-use super::{ast::remove_duplicate_definition, logger::{ProgramError, TimeUsage}, Executor};
+use super::{
+    ast::remove_duplicate_definition,
+    logger::{ProgramError, TimeUsage},
+    Executor,
+};
 
 impl Executor {
     /// check whether the c porgram is syntaxically and semantically correct.
@@ -149,7 +153,7 @@ impl Executor {
         deopt: &Deopt,
     ) -> Result<Vec<Option<ProgramError>>> {
         let mut program_paths = Vec::new();
-        for (_i, program) in programs.iter().enumerate() {
+        for program in programs.iter() {
             let temp_path = deopt.get_work_seed_by_id(program.id)?;
             let mut content = String::new();
             content.push_str(crate::deopt::utils::format_library_header_strings(deopt));
@@ -183,7 +187,7 @@ impl Executor {
     /// Using multi-process to run a fixed size of batch of programs, and check the program correctness.
     pub fn concurrent_check_batch(
         &self,
-        programs: &Vec<PathBuf>,
+        programs: &[PathBuf],
         core: usize,
     ) -> Result<Vec<Option<ProgramError>>> {
         let mut childs = Vec::new();
@@ -233,7 +237,7 @@ impl Executor {
     ///Utilize multi-process to check the correctness of programs concurrently.
     pub fn concurrent_check(
         &self,
-        programs: &Vec<PathBuf>,
+        programs: &[PathBuf],
         core: usize,
     ) -> Result<Vec<Option<ProgramError>>> {
         let mut has_errs = Vec::new();
@@ -334,7 +338,8 @@ pub mod utils {
         let files = crate::deopt::utils::read_sort_dir(sanitize_dir)?;
         for file in files {
             if let Some(ext) = file.extension() {
-                if ext == "log" || ext == "out" || ext == "cc" || ext == "profdata" || ext == "cost" {
+                if ext == "log" || ext == "out" || ext == "cc" || ext == "profdata" || ext == "cost"
+                {
                     continue;
                 }
             }
