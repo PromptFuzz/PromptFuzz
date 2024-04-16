@@ -1,4 +1,4 @@
-use crate::{config, program::Program};
+use crate::{config, execution::logger::get_gtl_mut, program::Program};
 
 use self::prompt::Prompt;
 
@@ -18,7 +18,9 @@ pub trait Handler {
         for program in programs.iter_mut() {
             program.combination = prompt.get_combination()?;
         }
-        log::debug!("LLM Generate time: {}s", start.elapsed().as_secs());
+        let generate_cost = start.elapsed().as_secs_f32();
+        log::debug!("LLM Generate time: {}s", generate_cost);
+        get_gtl_mut().inc_req(generate_cost);
         Ok(programs)
     }
     /// infill programs via the context of inserting location (i.e., prefix and suffix)
@@ -37,7 +39,7 @@ pub trait Handler {
 
 /// format the url of server to send requests.
 pub fn format_server_url() -> String {
-    vec![
+    [
         "http://",
         config::LISTEN_HOST,
         ":",

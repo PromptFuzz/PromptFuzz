@@ -11,14 +11,14 @@ use std::{
     process::{Command, Stdio},
 };
 
-use self::utils::{log_san_cost, cleanup_sanitize_dir};
+use self::utils::cleanup_sanitize_dir;
 
-use super::{ast::remove_duplicate_definition, logger::ProgramError, Executor};
+use super::{ast::remove_duplicate_definition, logger::{ProgramError, TimeUsage}, Executor};
 
 impl Executor {
     /// check whether the c porgram is syntaxically and semantically correct.
     fn is_program_syntax_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
-        let start = std::time::Instant::now();
+        let time_logger = TimeUsage::new(get_file_dirname(program_path));
         let output: std::process::Output = Command::new("clang++")
             .stdout(Stdio::null())
             .arg("-fsyntax-only")
@@ -26,7 +26,7 @@ impl Executor {
             .arg(program_path.as_os_str())
             .output()
             .expect("failed to execute the syntax check process");
-        log_san_cost(start, program_path)?;
+        time_logger.log("syntax")?;
         let success = output.status.success();
         if success {
             return Ok(None);
@@ -37,13 +37,13 @@ impl Executor {
 
     /// check whether the program is correct in compilation and linkage.
     fn is_program_link_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
-        let start = std::time::Instant::now();
+        let time_logger = TimeUsage::new(get_file_dirname(program_path));
         remove_duplicate_definition(program_path)?;
         let mut binary_out = PathBuf::from(program_path);
         binary_out.set_extension("out");
 
         let res = self.compile(vec![program_path], &binary_out, super::Compile::FUZZER);
-        log_san_cost(start, program_path)?;
+        time_logger.log("link")?;
 
         if let Err(err) = res {
             let err_msg = err.to_string();
@@ -54,7 +54,7 @@ impl Executor {
 
     /// linked with AddressSanitizer, execute it to check whether code is correct.
     fn is_program_execute_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
-        let start = std::time::Instant::now();
+        let time_logger = TimeUsage::new(get_file_dirname(program_path));
         let mut transformer = Transformer::new(program_path, &self.deopt)?;
         transformer.add_fd_sanitizer()?;
         transformer.preprocess()?;
@@ -70,27 +70,27 @@ impl Executor {
         // Execute the program on each corpus file and check error.
         let corpus = self.deopt.get_library_shared_corpus_dir()?;
         let has_err = self.execute_pool(&binary_out, &corpus);
-        log_san_cost(start, program_path)?;
+        time_logger.log("execute")?;
         Ok(has_err)
     }
 
     /// linked with LibFuzzer and AddressSanitizer, to check whether code is correct.
     pub fn is_program_fuzz_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
         log::trace!("test program is fuzz correct: {program_path:?}");
-        let start = std::time::Instant::now();
         let work_dir = get_file_dirname(program_path);
+        let time_logger = TimeUsage::new(work_dir.clone());
 
         let binary_out = program_path.with_extension("out");
 
         // execute fuzzer for duration timeout.
-        let corpus_dir: PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
+        let corpus_dir: PathBuf = [work_dir, "corpus".into()].iter().collect();
         crate::deopt::utils::copy_corpus(
             &self.deopt.get_library_shared_corpus_dir()?,
             &corpus_dir,
         )?;
 
         let res = self.execute_fuzzer(&binary_out, &corpus_dir);
-        log_san_cost(start, program_path)?;
+        time_logger.log("fuzz")?;
         if let Err(err) = res {
             return Ok(Some(ProgramError::Fuzzer(err.to_string())));
         }
@@ -99,21 +99,21 @@ impl Executor {
 
     pub fn is_program_coverage_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
         log::trace!("test program is coverage correct: {program_path:?}");
-        let start = std::time::Instant::now();
         let work_dir = get_file_dirname(program_path);
+        let time_logger = TimeUsage::new(work_dir.clone());
 
         // compile fuzzer with coverage instrumented library.
         let fuzzer_binary = program_path.with_extension("cov.out");
         self.compile(vec![program_path], &fuzzer_binary, super::Compile::COVERAGE)?;
 
         // Run the fuzzer on the previous synthesized corpus and collect coverage.
-        let corpus_dir: PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
+        let corpus_dir: PathBuf = [work_dir, "corpus".into()].iter().collect();
         let coverage =
             self.collect_code_coverage(Some(program_path), &fuzzer_binary, &corpus_dir)?;
 
         // Sanitize the fuzzer by its reached lines
         let has_err = sanitize_by_fuzzer_coverage(program_path, &self.deopt, &coverage)?;
-        log_san_cost(start, program_path)?;
+        time_logger.log("coverage")?;
         self.update_corpus(program_path)?;
         std::fs::remove_dir_all(corpus_dir)?;
 
@@ -158,6 +158,9 @@ impl Executor {
             program_paths.push(temp_path);
         }
         let res = self.concurrent_check(&program_paths, get_config().cores)?;
+        // print the time usage of the sanitization
+        utils::print_san_cost(&program_paths)?;
+
         // clean out the failure cache.
         for (i, has_err) in res.iter().enumerate() {
             let path = &program_paths[i];
@@ -244,21 +247,20 @@ impl Executor {
                 batch.clear();
             }
         }
-        utils::print_san_cost(programs)?;
         Ok(has_errs)
     }
 
     // Find the new coverage corpus files and merge them in shared corpus.
     fn update_corpus(&self, program_path: &Path) -> Result<()> {
         log::debug!("update new corpora into shared corpus");
-        let start = std::time::Instant::now();
         let work_dir = crate::deopt::utils::get_file_dirname(program_path);
+        let time_logger = TimeUsage::new(work_dir.clone());
         let fuzzer_binary = program_path.with_extension("out");
-        let corpus_dir: std::path::PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
+        let corpus_dir: std::path::PathBuf = [work_dir, "corpus".into()].iter().collect();
         let shared_corpus = self.deopt.get_library_shared_corpus_dir()?;
 
         self.minimize_corpus(&fuzzer_binary, &shared_corpus, &corpus_dir)?;
-        log_san_cost(start, program_path)?;
+        time_logger.log("update")?;
         Ok(())
     }
 
@@ -293,50 +295,38 @@ impl Executor {
 }
 
 pub mod utils {
-    use std::io::Write;
 
-    use eyre::Context;
-
-    use crate::program::serde::Deserializer;
+    use crate::execution::logger::get_gtl_mut;
 
     use super::*;
 
-    pub fn log_san_cost(start: std::time::Instant, program_path: &Path) -> Result<()> {
-        let program_dir = get_file_dirname(program_path);
-        let log_file: PathBuf = [program_dir, "san.cost".into()].iter().collect();
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_file)?;
-        file.write_fmt(format_args!("{}\n", start.elapsed().as_secs()))?;
-        Ok(())
-    }
-
     pub fn print_san_cost(program_paths: &Vec<PathBuf>) -> Result<()> {
-        let mut syntax = 0;
-        let mut link = 0;
-        let mut execution = 0;
-        let mut fuzzer = 0;
-        let mut coverage = 0;
-        let mut update = 0;
+        let mut max_time = 0_f32;
+        let mut usage = Vec::new();
         for program_path in program_paths {
             let program_dir = get_file_dirname(program_path);
-            let log_file: PathBuf = [program_dir, "san.cost".into()].iter().collect();
-            if !log_file.exists() {
-                continue;
+            let time_logger = TimeUsage::new(program_dir);
+
+            let syntax = time_logger.load("syntax")?;
+            let link = time_logger.load("link")?;
+            let execution = time_logger.load("execute")?;
+            let fuzz = time_logger.load("fuzz")?;
+            let coverage = time_logger.load("coverage")?;
+            let update = time_logger.load("update")?;
+            let total = syntax + link + execution + fuzz + coverage + update;
+            if total > max_time {
+                max_time = total;
+                usage.clear();
+                usage.push(syntax);
+                usage.push(link);
+                usage.push(execution);
+                usage.push(fuzz);
+                usage.push(coverage);
+                usage.push(update);
             }
-            let content = std::fs::read_to_string(&log_file)
-                .context(format!("file {log_file:?} open error."))?;
-            let mut de = Deserializer::from_input(&content);
-            syntax += de.parse_number::<usize>()?;
-            link += de.parse_number::<usize>().unwrap_or_default();
-            execution += de.parse_number::<usize>().unwrap_or_default();
-            fuzzer += de.parse_number::<usize>().unwrap_or_default();
-            coverage += de.parse_number::<usize>().unwrap_or_default();
-            update += de.parse_number::<usize>().unwrap_or_default();
         }
-        let total = syntax + link + execution + fuzzer + coverage + update;
-        log::debug!("Sanitization Time Cost: total: {total}s, syntax: {syntax}s, link: {link}s, exec: {execution}s, fuzz: {fuzzer}s, coverage: {coverage}s, update: {update}s");
+        log::debug!("This round's sanitization Time Cost: total: {max_time}s, syntax: {}s, link: {}s, exec: {}s, fuzz: {}s, coverage: {}s, update: {}s", usage[0], usage[1], usage[2], usage[3], usage[4], usage[5]);
+        get_gtl_mut().inc_san(usage[0], usage[1], usage[2], usage[3], usage[4], usage[5]);
         Ok(())
     }
 

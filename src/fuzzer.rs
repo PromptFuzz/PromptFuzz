@@ -1,18 +1,17 @@
 use crate::{
     config::{self, get_config, get_library_name},
     deopt::Deopt,
-    execution::{logger::ProgramLogger, Executor},
+    execution::{logger::{init_gtl, ProgramLogger}, Executor},
     feedback::{
         observer::Observer,
         schedule::{rand_choose_combination, Schedule},
     },
     minimize::minimize,
     program::{
-        libfuzzer::LibFuzzer, serde::Deserializer, Program, rand::rand_comb_len,
+        libfuzzer::LibFuzzer, rand::rand_comb_len, serde::Deserializer, Program
     },
     request::{
-        self,
-        prompt::{load_prompt, Prompt}, openai::openai_billing::get_quota_cost,
+        self, openai::openai_billing::get_quota_cost, prompt::{load_prompt, Prompt}
     },
 };
 use eyre::Result;
@@ -40,6 +39,7 @@ impl Fuzzer {
                 Box::<request::openai::OpenAIHanler>::default()
             }
         };
+        init_gtl();
         let fuzzer = Self {
             deopt,
             executor,
