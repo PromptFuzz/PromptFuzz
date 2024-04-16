@@ -169,6 +169,9 @@ pub struct Config {
     /// number of cores used to parallely run the fuzzers.
     #[arg(short, long, default_value="1")]
     pub cores: usize,
+    /// The maximum of cpu cores used in the sanitization phase.
+    #[arg(short, long, default_value="0")]
+    pub max_cores: usize,
     #[arg(short, long, default_value="false")]
     pub exponent_branch: bool,
     /// Whether to recheck the seeds during the fuzz loop is a decision that is strongly recommended. Enabling this option can help reduce false positives, but it may come at the cost of increased execution time. 
@@ -188,6 +191,7 @@ impl Config {
             n_sample: 10,
             temperature: 0.9,
             cores: 10,
+            max_cores: 0,
             fuzz_round_succ: 1,
             fuzz_converge_round: 10,
             exponent_branch: false,

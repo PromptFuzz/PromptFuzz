@@ -1,5 +1,5 @@
 use eyre::Result;
-use prompt_fuzz::execution::Compile;
+use prompt_fuzz::execution::{max_cpu_count, Compile};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
@@ -196,7 +196,7 @@ fn fuse_fuzzer(
     let programs = crate::deopt::utils::read_sort_dir(&test_dir)?;
     let batch_size = programs.len() / n_fuzzer;
 
-    let cpu_count = num_cpus::get();
+    let cpu_count = max_cpu_count();
     let core = if core > cpu_count || core == 0 {
         cpu_count
     } else {

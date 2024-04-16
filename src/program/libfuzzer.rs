@@ -3,6 +3,7 @@ use crate::ast::Clang;
 use crate::deopt::utils::get_file_dirname;
 use crate::deopt::{self, Deopt};
 use crate::execution::logger::ProgramError;
+use crate::execution::max_cpu_count;
 use crate::program::gadget::get_func_gadget;
 use crate::program::infer::dynamic_infer::find_testbed_corpora;
 use crate::program::transform::Transformer;
@@ -374,7 +375,7 @@ impl LibFuzzer {
     fn minimize_fuzzers_corpus(&self) -> Result<()> {
         let seed_dir = self.deopt.get_library_seed_dir()?;
         let seeds = crate::deopt::utils::read_sort_dir(&seed_dir)?;
-        let pool = ThreadPool::new(num_cpus::get() / 2);
+        let pool = ThreadPool::new(max_cpu_count() / 2);
         let num_seeds = seeds.len();
         for (i, seed) in seeds.iter().enumerate() {
             let libfuzzer = self.clone();

@@ -4,6 +4,7 @@ pub mod pch;
 pub mod sanitize;
 
 use self::logger::ProgramError;
+use crate::config::get_config;
 use crate::program::libfuzzer::respawn_libfuzzer_process;
 use crate::program::transform::Transformer;
 use crate::{
@@ -122,7 +123,7 @@ impl Executor {
         extra_envs: Vec<(S, S)>,
         current_dir: Option<PathBuf>,
         stderr: Option<Stdio>,
-        enough_timeout: bool
+        enough_timeout: bool,
     ) -> Child {
         let mut exec = Command::new(binary);
         for arg in &extra_args {
@@ -167,9 +168,16 @@ impl Executor {
         extra_envs: Vec<(S, S)>,
         current_dir: Option<PathBuf>,
         stderr: Option<Stdio>,
-        enough_timeout: bool
+        enough_timeout: bool,
     ) -> Result<Option<ProgramError>> {
-        let mut child = self.spawn(binary, extra_args, extra_envs, current_dir, stderr, enough_timeout);
+        let mut child = self.spawn(
+            binary,
+            extra_args,
+            extra_envs,
+            current_dir,
+            stderr,
+            enough_timeout,
+        );
 
         let timeout = if enough_timeout {
             crate::config::SANITIZATION_TIMEOUT + 1
@@ -204,7 +212,7 @@ impl Executor {
     }
 
     pub fn execute_pool(&self, binary: &Path, corpus: &Path) -> Option<ProgramError> {
-        let cpu_count = num_cpus::get() - 1;
+        let cpu_count = max_cpu_count();
         let corpus_files = crate::deopt::utils::read_all_files_in_dir(corpus).unwrap();
 
         let pool = ThreadPool::new(cpu_count);
@@ -225,7 +233,9 @@ impl Executor {
                 }
 
                 let args = vec![corpus_file.as_os_str()];
-                let has_err = executor.execute(&binary, args, vec![], None, None, false).unwrap();
+                let has_err = executor
+                    .execute(&binary, args, vec![], None, None, false)
+                    .unwrap();
                 if has_err.is_some() {
                     error_occurred.store(true, Ordering::SeqCst);
                 }
@@ -265,7 +275,7 @@ impl Executor {
             vec![],
             None,
             Some(std::fs::File::create(&log_file)?.into()),
-            false
+            false,
         );
 
         let mut cost_time: u64 = 0;
@@ -322,7 +332,7 @@ impl Executor {
         }
         crate::deopt::utils::create_dir_if_nonexist(&profraw_dir)?;
         let corpus_files = crate::deopt::utils::read_sort_dir(corpus_dir)?;
-        let cpu_count = num_cpus::get() - 1;
+        let cpu_count = max_cpu_count();
         let pool = ThreadPool::new(cpu_count);
 
         for (id, corpus_file) in corpus_files.iter().enumerate() {
@@ -537,12 +547,17 @@ impl Executor {
             vec![],
             Some(fuzzer_work_dir),
             Some(std::fs::File::create(log_file)?.into()),
-            false
+            false,
         );
         Ok(child)
     }
 
-    pub fn run_libfuzzer(&self, run_exploit: bool, time_limit: Option<u64>, min_corpus: Option<bool>) -> Result<()> {
+    pub fn run_libfuzzer(
+        &self,
+        run_exploit: bool,
+        time_limit: Option<u64>,
+        min_corpus: Option<bool>,
+    ) -> Result<()> {
         let fuzzer_dir = if run_exploit {
             self.deopt.get_library_fuzzer_dir(true)?
         } else {
@@ -578,7 +593,7 @@ impl Executor {
             let final_corpus: PathBuf = [path.clone(), "minimized_corpus".into()].iter().collect();
             if final_corpus.exists() {
                 std::fs::rename(final_corpus, &corpus)?;
-            } 
+            }
             if should_minimize {
                 self.minimize_corpus(&fuzzer_binary, &minimize, &corpus)?;
                 std::fs::remove_dir_all(&corpus)?;
@@ -745,6 +760,16 @@ fn parse_cov_from_log(log_file: &Path) -> eyre::Result<Option<usize>> {
         }
     }
     Ok(None)
+}
+
+pub fn max_cpu_count() -> usize {
+    let max_cores = get_config().max_cores;
+    let cpu_count = num_cpus::get() - 1;
+    if max_cores >= cpu_count || max_cores == 0 {
+        cpu_count
+    } else {
+        max_cores
+    }
 }
 
 #[cfg(test)]
