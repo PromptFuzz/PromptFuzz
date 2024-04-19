@@ -1,5 +1,5 @@
 /// Dynamically infer the constraints of AllocSize, LoopCount and so on influence the performance.
-use std::ffi::{OsStr, OsString};
+use std::{ffi::{OsStr, OsString}, ptr::addr_of};
 
 use eyre::Context;
 use once_cell::sync::OnceCell;
@@ -315,7 +315,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
 
     let mut ranked_files = Vec::new();
 
-    for cache_file in unsafe { &CACHE } {
+    for cache_file in unsafe { addr_of!(CACHE).as_ref().unwrap() } {
         let cov = get_corpora_coverage(&fuzzer_code, &fuzzer_cov, cache_file, &executor);
         if let Err(err) = cov {
             log::error!("{err}");

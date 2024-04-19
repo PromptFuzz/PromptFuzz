@@ -1,3 +1,5 @@
+use std::ptr::{addr_of, addr_of_mut};
+
 use once_cell::sync::OnceCell;
 use strum::Display;
 
@@ -97,14 +99,14 @@ pub const ASAN_OPTIONS: [&str; 2] = [
 ];
 
 pub fn get_config() -> &'static Config {
-    if let Some(c) = unsafe { &CONFIG_INSTANCE } {
+    if let Some(Some(c)) = unsafe { addr_of!(CONFIG_INSTANCE).as_ref() } {
         return c;
     }
     unsafe { CONFIG_INSTANCE.as_ref().unwrap_or_else(|| panic!("please parse the config first.")) }
 }
 
 pub fn get_config_mut() -> &'static mut Config {
-    if let Some(c) = unsafe { &mut CONFIG_INSTANCE } {
+    if let Some(Some(c)) = unsafe { addr_of_mut!(CONFIG_INSTANCE).as_mut() } {
         return c;
     }
     unsafe { CONFIG_INSTANCE.as_mut().unwrap_or_else(|| panic!("please parse the config first.")) }
