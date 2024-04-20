@@ -14,7 +14,7 @@ function download() {
     if [[ ! -z "${DOCKER_CONTAINER:-}" ]]; then
         apt-get update &&
             apt-get -y upgrade &&
-            apt-get -y install pkg-config file cmake autoconf automake texinfo &&
+            apt-get -y install pkg-config file cmake autoconf automake texinfo libtool &&
             apt-get clean
     fi
 

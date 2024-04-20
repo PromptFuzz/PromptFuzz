@@ -39,7 +39,7 @@ function download() {
         mkdir ${PROJECT_NAME}
         git clone --depth 1 https://github.com/curl/curl.git
         git clone --depth 1 https://github.com/nghttp2/nghttp2
-        wget https://zlib.net/zlib.tar.gz -o zlib.tar.gz && tar -xf zlib.tar.gz && rm zlib.tar.gz
+        git clone --depth 1 https://github.com/madler/zlib.git
         git clone --depth 1 https://github.com/openssl/openssl
         git clone --depth 1 https://github.com/curl/curl-fuzzer.git
         git clone --depth 1 https://github.com/facebook/zstd.git
@@ -51,6 +51,7 @@ function build_zlib() {
     cd $ZLIBDIR
     ./configure --prefix=${INSTALLDIR} \
                 --static
+    export CC="${CC} -fPIC"
     make
     make install
     load_flags
@@ -98,7 +99,7 @@ function build_openssl() {
                         $CFLAGS \
                         ${OPENSSLFLAGS}
 
-    make
+    make -j$(nproc)
     make install_sw
     load_flags
 }
@@ -113,7 +114,7 @@ function build_nghttp() {
                 --enable-static \
                 --disable-threads --enable-lib-only
 
-    make
+    make -j$(nproc)
     make install
     load_flags
 }
@@ -174,7 +175,7 @@ function build_curl() {
                 ${NGHTTPOPTION} \
                 ${CODE_COVERAGE_OPTION}
 
-    make V=1
+    make V=1 -j$(nproc)
     make install
 }
 
@@ -212,7 +213,7 @@ function build_oss_fuzz() {
     CXXFLAGS="$CXXFLAGS -fsanitize=address"
     ./buildconf || exit 2
     ./configure ${CODE_COVERAGE_OPTION} || exit 3
-    make || exit 4
+    make -j$(nproc) || exit 4
     make check || exit 5
     make zip
     export FUZZ_TARGETS="curl_fuzzer_dict curl_fuzzer_file curl_fuzzer_ftp curl_fuzzer_gopher curl_fuzzer_http curl_fuzzer_https curl_fuzzer_imap curl_fuzzer_ldap curl_fuzzer_mqtt curl_fuzzer_pop3 curl_fuzzer_rtmp curl_fuzzer_rtsp curl_fuzzer_scp curl_fuzzer_sftp curl_fuzzer_smb curl_fuzzer_smtp curl_fuzzer_tftp curl_fuzzer_ws curl_fuzzer fuzz_url"
