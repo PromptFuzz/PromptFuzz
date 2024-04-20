@@ -314,8 +314,8 @@ mod tests {
 
         let profdata: PathBuf = [Deopt::get_crate_dir()?, "testsuites", "corpora", "defualt.profdata"].iter().collect();
         let coverage = Executor::obtain_cov_from_profdata(&executor, &profdata)?;
-        let clang_branch = coverage.get_total_summary().count_covered_branch();
-        let clang_total_branch: usize = coverage.get_total_summary().count_total_branch();
+        let clang_branch = coverage.get_total_summary().count_covered_branches();
+        let clang_total_branch: usize = coverage.get_total_summary().count_total_branches();
         log::info!("clang coverage: covered: {clang_branch}, total: {clang_total_branch}");
 
         let mut observer = Observer::new(&deopt);

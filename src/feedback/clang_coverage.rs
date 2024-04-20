@@ -21,6 +21,7 @@ pub struct CodeCoverage {
 struct CovObject {
     #[serde(skip_deserializing)]
     pub fuzzer_lines: Vec<CovLine>,
+    #[serde(default)]
     pub functions: Vec<CovFunction>,
     totals: CovSummary,
 }
@@ -95,12 +96,31 @@ pub struct CovSummary {
 }
 
 impl CovSummary {
-    pub fn count_covered_branch(&self) -> usize {
+    pub fn count_covered_branches(&self) -> usize {
         self.branches.covered
     }
 
-    pub fn count_total_branch(&self) -> usize {
+    pub fn count_total_branches(&self) -> usize {
         self.branches.count
+    }
+
+    pub fn count_covered_functions(&self) -> usize {
+        self.functions.covered
+    }
+
+    pub fn count_covered_lines(&self) -> usize {
+        self.lines.covered
+    }
+
+    pub fn count_covered_regions(&self) -> usize {
+        self.regions.covered
+    }
+
+    pub fn has_new_coverage(&self, pre: &Self) -> bool {
+        self.count_covered_branches() > pre.count_covered_branches() ||
+        self.count_covered_functions() > pre.count_covered_functions() ||
+        self.count_covered_lines() > pre.count_covered_lines() ||
+        self.count_covered_regions() > pre.count_covered_regions()
     }
 }
 
@@ -159,10 +179,6 @@ impl CodeCoverage {
         Ok(cov)
     }
 
-    pub fn ignore_absl_function(&mut self) {
-        self.data[0].functions.retain(|x| !x.get_name().contains("4absl"))
-    }
-
     pub fn get_total_summary(&self) -> &CovSummary {
         &self.data[0].totals
     }
@@ -219,6 +235,10 @@ impl CodeCoverage {
         true
     }
 
+    pub fn has_new_coverage(&self, pre_cov: &Self) -> bool {
+        self.get_total_summary().has_new_coverage(pre_cov.get_total_summary())
+    }
+
     pub fn display(&self) {
         let summary = self.get_total_summary();
         println!(
@@ -270,24 +290,24 @@ impl Executor {
         Ok(())
     }
 
-    pub fn merge_profdata(prof_files: &Vec<PathBuf>, out_file: &PathBuf) -> Result<()> {
+    pub fn merge_profdata(profraw_files: &Vec<PathBuf>, profdata: &Path) -> Result<()> {
         let mut output = Command::new("llvm-profdata");
         let cmd = output
             .arg("merge")
             .arg("-sparse");
-        for prof_file in prof_files {
+        for prof_file in profraw_files {
             cmd.arg(prof_file);
         }
         let output = cmd.arg("-o")
-            .arg(out_file)
+            .arg(profdata)
             .output()?;
         if !output.status.success() {
-            eyre::bail!("obtain coverage from profraw fail! :{prof_files:?}")
+            eyre::bail!("obtain coverage from profraw fail! :{profraw_files:?}")
         }
         Ok(())
     }
 
-    /// report the summary of code coverage for a profile data.
+    /// report the code coverage for a profile data.
     pub fn obtain_cov_from_profdata(&self, profdata: &Path) -> Result<CodeCoverage> {
         // library so linked with code coverage instrumentation.
         let cov_lib = crate::deopt::utils::get_cov_lib_path(&self.deopt, true);
@@ -303,8 +323,27 @@ impl Executor {
             eyre::bail!("failed to collect code coverage from {profdata:?}\n cmd: {output:?}")
         }
         let json_output = output.stdout.as_slice();
-        let mut cov: CodeCoverage = CodeCoverage::from_slice(json_output)?;
-        cov.ignore_absl_function();
+        let cov: CodeCoverage = CodeCoverage::from_slice(json_output)?;
+        Ok(cov)
+    }
+
+    pub fn obtain_cov_summary_from_prodata(&self, profdata: &Path) -> Result<CodeCoverage> {
+        // library so linked with code coverage instrumentation.
+        let cov_lib = crate::deopt::utils::get_cov_lib_path(&self.deopt, true);
+        // view coverage report
+        let output = Command::new("llvm-cov")
+            .arg("export")
+            .arg(cov_lib)
+            .arg("--skip-expansions")
+            .arg("--summary-only")
+            .arg(format!("--instr-profile={}", profdata.to_string_lossy()))
+            .stdout(Stdio::piped())
+            .output()?;
+        if !output.status.success() {
+            eyre::bail!("failed to collect code coverage from {profdata:?}\n cmd: {output:?}")
+        }
+        let json_output = output.stdout.as_slice();
+        let cov: CodeCoverage = CodeCoverage::from_slice(json_output)?;
         Ok(cov)
     }
 
@@ -451,7 +490,7 @@ impl Executor {
             let seed_id = crate::program::Program::load_from_path(seed)?.id;
             self.eval_seed_coverage(seed_id)?;
             let coverage = self.deopt.get_seed_coverage(seed_id)?;
-            let covered_branch = coverage.get_total_summary().count_covered_branch();
+            let covered_branch = coverage.get_total_summary().count_covered_branches();
             log::info!("seed: {seed_id}, covered_branch: {covered_branch}");
             observer.merge_coverage(&coverage);
             log::info!("seed: {seed_id}, {}", observer.dump_global_states());
@@ -623,8 +662,31 @@ mod tests {
     use crate::deopt::Deopt;
 
     use super::*;
+
     #[test]
-    fn test_code_coverage_parse() -> Result<()> {
+    fn test_parse_coverage_summary() -> Result<()> {
+        crate::config::Config::init_test("cJSON");
+        let deopt = Deopt::new("cJSON")?;
+        let profdata: PathBuf = [
+            crate::Deopt::get_crate_dir()?,
+            "testsuites",
+            "corpora",
+            "default.profdata",
+        ]
+        .iter()
+        .collect();
+        let executor = Executor::new(&deopt)?;
+        let cov = executor.obtain_cov_summary_from_prodata(&profdata)?;
+        let summary = cov.get_total_summary();
+        assert_eq!(summary.count_covered_branches(), 185);
+        assert_eq!(summary.count_covered_functions(), 13);
+        assert_eq!(summary.count_covered_lines(), 331);
+        assert_eq!(summary.count_covered_regions(), 353);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_code_coverage() -> Result<()> {
         crate::config::Config::init_test("cJSON");
         let deopt = Deopt::new("cJSON")?;
         let profdata: PathBuf = [
