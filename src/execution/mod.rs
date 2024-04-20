@@ -17,6 +17,7 @@ use crate::{
 use eyre::Result;
 use regex::Regex;
 use std::ffi::OsString;
+use std::process::ChildStderr;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::channel,
@@ -200,10 +201,8 @@ impl Executor {
             return Ok(None);
         }
         let mut err_msg = String::new();
-        if let Some(mut childerr) = child.stderr.take() {
-            let mut error_buf = Vec::new();
-            childerr.read_to_end(&mut error_buf)?;
-            err_msg = String::from_utf8_lossy(&error_buf).to_string();
+        if let Some(childerr) = child.stderr.take() {
+            err_msg = get_child_err(childerr);
         }
         if err_msg.contains("libFuzzer: timeout") {
             return Ok(Some(ProgramError::Hang(err_msg)));
@@ -319,6 +318,28 @@ impl Executor {
         }
     }
 
+    pub fn execute_cov_fuzzer(&self, fuzzer_binary: &Path, corpus_dir: &Path, profraw: &Path) -> Result<()> {
+        let extra_envs = vec![(OsStr::new("LLVM_PROFILE_FILE"), profraw.as_os_str())];
+        let extra_args = vec![OsStr::new("-runs=0"), corpus_dir.as_os_str()];
+        let mut child = self.spawn(fuzzer_binary, extra_args, extra_envs, None, None, false);
+        let timeout = std::time::Duration::from_secs(crate::config::EXECUTION_TIMEOUT);
+        let status = match child.wait_timeout(timeout).unwrap() {
+            Some(status) => status.code(),
+            None => {
+                child.kill().unwrap();
+                child.wait().unwrap().code()
+            }
+        };
+        if !is_exit_normally(status) {
+            log::warn!("execute fuzz_cov failed! {fuzzer_binary:?}, {corpus_dir:?}");
+            if let Some(err) = child.stderr.take() {
+                let err_msg = get_child_err(err);
+                log::error!("Error: {err_msg}");
+            }
+        }
+        Ok(())
+    }
+
     pub fn execute_cov_fuzzer_pool(
         &self,
         fuzzer_binary: &Path,
@@ -338,52 +359,22 @@ impl Executor {
         for (id, corpus_file) in corpus_files.iter().enumerate() {
             let binary = fuzzer_binary.to_path_buf();
             let corpus_file = corpus_file.to_path_buf();
-            let prof_file: PathBuf = [PathBuf::from(&profraw_dir), format!("{id}.profraw").into()]
+            let corpus_name = corpus_file.file_name().expect("file name of corpus file should not be empty").to_string_lossy().to_string();
+            let profraw_file: PathBuf = [PathBuf::from(&profraw_dir), format!("{corpus_name}.profraw").into()]
                 .iter()
                 .collect();
             let len = corpus_files.len();
             let executor = self.clone();
 
             pool.execute(move || {
-                let extra_envs = vec![(OsStr::new("LLVM_PROFILE_FILE"), prof_file.as_os_str())];
-                let extra_args = vec![corpus_file.as_os_str()];
-                let mut child = executor.spawn(&binary, extra_args, extra_envs, None, None, false);
-                let timeout = std::time::Duration::from_secs(crate::config::EXECUTION_TIMEOUT);
-                let status = match child.wait_timeout(timeout).unwrap() {
-                    Some(status) => status.code(),
-                    None => {
-                        child.kill().unwrap();
-                        child.wait().unwrap().code()
-                    }
-                };
-                if !is_exit_normally(status) {
-                    log::warn!("execute fuzz_cov failed! {binary:?}, {corpus_file:?}");
-                    if let Some(mut err) = child.stderr.take() {
-                        let mut err_buf = Vec::new();
-                        err.read_to_end(&mut err_buf).unwrap();
-                        let err_msg = String::from_utf8_lossy(&err_buf);
-                        log::error!("Error: {err_msg}");
-                    }
-                }
+                executor.execute_cov_fuzzer(&binary, &corpus_file, &profraw_file).unwrap();
                 log::trace!("execute fuzz_cov on corpus finished {id}/{}", len);
             });
         }
         pool.join();
 
-        let mut cmd = Command::new("llvm-profdata");
-        let cmd = cmd.current_dir(&profraw_dir).arg("merge").arg("-sparse");
-        let prof_raws = crate::deopt::utils::read_all_files_in_dir(&profraw_dir)?;
-        for raw in prof_raws {
-            cmd.arg(raw);
-        }
-        let output = cmd.arg("-o").arg(profdata).output()?;
-        if !output.status.success() {
-            let err_msg = String::from_utf8_lossy(&output.stderr);
-            eyre::bail!("merge fuzzzer coverage to profdata fail! :{err_msg}")
-        }
-
-        // remove the profraw dir to avoid the huge disk cost.
-        std::fs::remove_dir_all(profraw_dir)?;
+        let profraws = crate::deopt::utils::read_all_files_in_dir(&profraw_dir)?;
+        Self::merge_profdata(&profraws, profdata)?;
         Ok(())
     }
 
@@ -703,6 +694,14 @@ fn is_exit_normally(code: Option<i32>) -> bool {
         false
     }
 }
+
+pub fn get_child_err(mut err: ChildStderr) -> String {
+    let mut err_buf = Vec::new();
+    err.read_to_end(&mut err_buf).unwrap();
+    let err_msg = String::from_utf8_lossy(&err_buf).to_string();
+    err_msg
+}
+
 
 // mkdir the directory "corpus" under the same directory of fuzzer.
 fn mkdir_fuzzer_corpus(fuzzer_path: &Path) -> PathBuf {

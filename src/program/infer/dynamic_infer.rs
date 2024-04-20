@@ -322,7 +322,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
             break;
         }
         let cov = cov?;
-        let cov_score = cov.get_total_summary().count_covered_branch();
+        let cov_score = cov.get_total_summary().count_covered_branches();
         ranked_files.push((cache_file, cov_score));
         if !sanitize_by_fuzzer_coverage(&fuzzer_code, deopt, &cov)? {
             return Ok(cache_file.to_path_buf());
@@ -355,7 +355,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
         if sanitize_by_fuzzer_coverage(&fuzzer_code, deopt, &cov)? {
             continue;
         }
-        let covered_branch = cov.get_total_summary().count_covered_branch();
+        let covered_branch = cov.get_total_summary().count_covered_branches();
         if covered_branch > max_branch {
             max_branch = covered_branch;
             max_corpora = Some(corpora.clone());

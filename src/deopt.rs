@@ -355,6 +355,19 @@ impl Deopt {
         Ok(corpus_dir)
     }
 
+    pub fn get_library_shared_corpus_profraw_dir(&self) -> Result<PathBuf> {
+        let temp_dir = self.get_library_misc_dir()?;
+        let profraw_dir: PathBuf = [temp_dir, "profraw".into()].iter().collect();
+        create_dir_if_nonexist(&profraw_dir)?;
+        Ok(profraw_dir)
+    }
+
+    pub fn get_library_shared_corpus_profdata(&self) -> Result<PathBuf> {
+        let temp_dir = self.get_library_misc_dir()?;
+        let profdata = [temp_dir, "default.profdata".into()].iter().collect();
+        Ok(profdata)
+    }
+
     pub fn copy_file_to_shared_corpus(&self, instresting_files: Vec<PathBuf>) -> Result<()> {
         let corpus_dir = self.get_library_shared_corpus_dir()?;
         for file in instresting_files {
@@ -636,6 +649,14 @@ pub mod utils {
         Ok(())
     }
 
+    pub fn count_dir_entires(dir: &Path) -> Result<usize> {
+        if !dir.exists() {
+            return Ok(0);
+        }
+        let entries = std::fs::read_dir(dir)?;
+        Ok(entries.count())
+    }
+
     /// read the directory and sort the entries by the alphabet oder
     pub fn read_sort_dir(dir: &Path) -> Result<Vec<PathBuf>> {
         let mut entries = Vec::new();
@@ -651,6 +672,13 @@ pub mod utils {
         }
         entries.sort();
         Ok(entries)
+    }
+
+    pub fn get_newly_added_files(old_dir: &Path, new_dir: &Path) -> Result<Vec<PathBuf>> {
+        let old_files = read_sort_dir(old_dir)?;
+        let now_files = read_sort_dir(new_dir)?;
+        let new_files: Vec<PathBuf> = now_files.iter().filter(|x| !old_files.contains(x)).cloned().collect();
+       Ok(new_files)
     }
 
     /// format the headers of this library that should include as a single String.

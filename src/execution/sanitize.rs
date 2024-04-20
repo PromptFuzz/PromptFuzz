@@ -1,6 +1,6 @@
 use crate::{
     config::{get_config, get_library_name},
-    deopt::utils::get_file_dirname,
+    deopt::utils::{count_dir_entires, get_file_dirname, get_newly_added_files, read_sort_dir},
     feedback::clang_coverage::utils::{dump_fuzzer_coverage, sanitize_by_fuzzer_coverage},
     program::{serde::Serialize, transform::Transformer, Program},
     Deopt,
@@ -111,14 +111,17 @@ impl Executor {
         self.compile(vec![program_path], &fuzzer_binary, super::Compile::COVERAGE)?;
 
         // Run the fuzzer on the previous synthesized corpus and collect coverage.
-        let corpus_dir: PathBuf = [work_dir, "corpus".into()].iter().collect();
+        let corpus_dir: PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
         let coverage =
             self.collect_code_coverage(Some(program_path), &fuzzer_binary, &corpus_dir)?;
 
         // Sanitize the fuzzer by its reached lines
         let has_err = sanitize_by_fuzzer_coverage(program_path, &self.deopt, &coverage)?;
         time_logger.log("coverage")?;
-        self.update_corpus(program_path)?;
+        self.evolve_corpus(program_path)?;
+        // remove the profraw dir to avoid the huge disk cost.
+        let profraw_dir: PathBuf = [work_dir, "profraw".into()].iter().collect();
+        std::fs::remove_dir_all(profraw_dir)?;
         std::fs::remove_dir_all(corpus_dir)?;
 
         if !has_err {
@@ -254,16 +257,51 @@ impl Executor {
         Ok(has_errs)
     }
 
-    // Find the new coverage corpus files and merge them in shared corpus.
-    fn update_corpus(&self, program_path: &Path) -> Result<()> {
-        log::debug!("update new corpora into shared corpus");
+    // Evolving the fuzzing corpus by finding the new coverage corpus files and merge them in shared corpus.
+    fn evolve_corpus(&self, program_path: &Path) -> Result<()> {
+        log::debug!("Evolve fuzzing corpus by merge new coverage corpora");
         let work_dir = crate::deopt::utils::get_file_dirname(program_path);
         let time_logger = TimeUsage::new(work_dir.clone());
-        let fuzzer_binary = program_path.with_extension("out");
-        let corpus_dir: std::path::PathBuf = [work_dir, "corpus".into()].iter().collect();
+        let fuzzer_binary = program_path.with_extension("cov.out");
         let shared_corpus = self.deopt.get_library_shared_corpus_dir()?;
+        let global_profdata = self.deopt.get_library_shared_corpus_profdata()?;
+        let global_profraw_dir = self.deopt.get_library_shared_corpus_profraw_dir()?;
+        let work_profraw_dir: PathBuf = [work_dir.clone(), "profraw".into()].iter().collect();
 
-        self.minimize_corpus(&fuzzer_binary, &shared_corpus, &corpus_dir)?;
+        // initilize global profdata
+        if !global_profdata.exists() {
+            let count = count_dir_entires(&global_profraw_dir)?;
+            let profraw_file: PathBuf = [PathBuf::from(&global_profraw_dir), format!("{count}.profraw").into()]
+                .iter()
+                .collect();
+            self.execute_cov_fuzzer(&fuzzer_binary, &shared_corpus, &profraw_file)?;
+            Self::merge_profdata(&vec![profraw_file], &global_profdata)?;
+        }
+
+        // find the corpora that triggered new coverage
+        let corpus_dir: std::path::PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
+        let added_files = get_newly_added_files(&shared_corpus, &corpus_dir)?;
+        for corpus_file in added_files {
+            let pre_cov = self.obtain_cov_summary_from_prodata(&global_profdata)?;
+            let corpus_file_name = corpus_file.file_name().expect("corpus file name should not be empty").to_string_lossy().to_string();
+            let profraw_file: PathBuf = [work_profraw_dir.clone(), format!("{corpus_file_name}.profraw").into()].iter().collect();
+            if !profraw_file.exists() {
+                log::warn!("{profraw_file:?} does not exist!");
+            }
+            let mut profraw_files = read_sort_dir(&global_profraw_dir)?;
+            profraw_files.push(profraw_file.clone());
+            Self::merge_profdata(&profraw_files, &global_profdata)?;
+
+            let now_cov = self.obtain_cov_summary_from_prodata(&global_profdata)?;
+            if now_cov.has_new_coverage(&pre_cov) {
+                let new_profraw_file: PathBuf = [PathBuf::from(&global_profraw_dir), format!("{corpus_file_name}.profraw").into()]
+                    .iter()
+                    .collect();
+                std::fs::copy(&profraw_file, new_profraw_file)?;
+                let dest_corpus: PathBuf = [shared_corpus.clone(), corpus_file.file_name().unwrap().into()].iter().collect();
+                std::fs::copy(corpus_file, dest_corpus)?;
+            }
+        }
         time_logger.log("update")?;
         Ok(())
     }
@@ -459,13 +497,13 @@ mod tests {
 
     #[test]
     fn test_sanitization_for_a_program() -> Result<()> {
-        crate::config::Config::init_test("libpng");
-        let deopt = Deopt::new("libpng")?;
+        crate::config::Config::init_test("cJSON");
+        let deopt = Deopt::new("cJSON")?;
         let program_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "new_test.cc"]
                 .iter()
                 .collect();
-        let work_path = deopt.get_work_seed_by_id(88888)?;
+        let work_path = deopt.get_work_seed_by_id(3)?;
         std::fs::copy(program_path, &work_path)?;
         let executor = Executor::new(&deopt)?;
         let res = executor.check_program_is_correct(&work_path)?;
