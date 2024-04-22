@@ -1,6 +1,6 @@
 use crate::{
     config::{get_config, get_library_name},
-    deopt::utils::{count_dir_entires, get_file_dirname, get_newly_added_files, read_sort_dir},
+    deopt::utils::{count_dir_entires, get_file_dirname, get_newly_added_files},
     feedback::clang_coverage::utils::{dump_fuzzer_coverage, sanitize_by_fuzzer_coverage},
     program::{serde::Serialize, transform::Transformer, Program},
     Deopt,
@@ -267,6 +267,7 @@ impl Executor {
         let global_profdata = self.deopt.get_library_shared_corpus_profdata()?;
         let global_profraw_dir = self.deopt.get_library_shared_corpus_profraw_dir()?;
         let work_profraw_dir: PathBuf = [work_dir.clone(), "profraw".into()].iter().collect();
+        let work_profdata: PathBuf = [work_dir.clone(), "evlove.profdata".into()].iter().collect();
 
         // initilize global profdata
         if !global_profdata.exists() {
@@ -282,24 +283,25 @@ impl Executor {
         let corpus_dir: std::path::PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
         let added_files = get_newly_added_files(&shared_corpus, &corpus_dir)?;
         for corpus_file in added_files {
+            log::debug!("{corpus_file:?}");
             let pre_cov = self.obtain_cov_summary_from_prodata(&global_profdata)?;
+            let _pre_branch = pre_cov.get_total_summary().count_covered_branches();
+            log::debug!("Previous covered branch: {_pre_branch}");
             let corpus_file_name = corpus_file.file_name().expect("corpus file name should not be empty").to_string_lossy().to_string();
             let profraw_file: PathBuf = [work_profraw_dir.clone(), format!("{corpus_file_name}.profraw").into()].iter().collect();
             if !profraw_file.exists() {
                 log::warn!("{profraw_file:?} does not exist!");
             }
-            let mut profraw_files = read_sort_dir(&global_profraw_dir)?;
-            profraw_files.push(profraw_file.clone());
-            Self::merge_profdata(&profraw_files, &global_profdata)?;
+            let prof_files = vec![profraw_file, global_profdata.clone()];
+            Self::merge_profdata(&prof_files, &work_profdata)?;
 
-            let now_cov = self.obtain_cov_summary_from_prodata(&global_profdata)?;
+            let now_cov = self.obtain_cov_summary_from_prodata(&work_profdata)?;
+            let _cur_branch = now_cov.get_total_summary().count_covered_branches();
+            log::debug!("Current covered branch: {_cur_branch}");
             if now_cov.has_new_coverage(&pre_cov) {
-                let new_profraw_file: PathBuf = [PathBuf::from(&global_profraw_dir), format!("{corpus_file_name}.profraw").into()]
-                    .iter()
-                    .collect();
-                std::fs::copy(&profraw_file, new_profraw_file)?;
                 let dest_corpus: PathBuf = [shared_corpus.clone(), corpus_file.file_name().unwrap().into()].iter().collect();
                 std::fs::copy(corpus_file, dest_corpus)?;
+                std::fs::copy(&work_profdata, &global_profdata)?;
             }
         }
         time_logger.log("update")?;
