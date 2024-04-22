@@ -283,10 +283,7 @@ impl Executor {
         let corpus_dir: std::path::PathBuf = [work_dir.clone(), "corpus".into()].iter().collect();
         let added_files = get_newly_added_files(&shared_corpus, &corpus_dir)?;
         for corpus_file in added_files {
-            log::debug!("{corpus_file:?}");
             let pre_cov = self.obtain_cov_summary_from_prodata(&global_profdata)?;
-            let _pre_branch = pre_cov.get_total_summary().count_covered_branches();
-            log::debug!("Previous covered branch: {_pre_branch}");
             let corpus_file_name = corpus_file.file_name().expect("corpus file name should not be empty").to_string_lossy().to_string();
             let profraw_file: PathBuf = [work_profraw_dir.clone(), format!("{corpus_file_name}.profraw").into()].iter().collect();
             if !profraw_file.exists() {
@@ -296,8 +293,6 @@ impl Executor {
             Self::merge_profdata(&prof_files, &work_profdata)?;
 
             let now_cov = self.obtain_cov_summary_from_prodata(&work_profdata)?;
-            let _cur_branch = now_cov.get_total_summary().count_covered_branches();
-            log::debug!("Current covered branch: {_cur_branch}");
             if now_cov.has_new_coverage(&pre_cov) {
                 let dest_corpus: PathBuf = [shared_corpus.clone(), corpus_file.file_name().unwrap().into()].iter().collect();
                 std::fs::copy(corpus_file, dest_corpus)?;
