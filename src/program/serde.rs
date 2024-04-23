@@ -1,4 +1,5 @@
 use core::str::FromStr;
+use std::path::PathBuf;
 
 use crate::request::prompt::combination_to_str;
 use eyre::Result;
@@ -207,6 +208,12 @@ impl<'de> Deserializer<'de> {
         }
         self.eat_token("]")?;
         Ok(v)
+    }
+
+    pub fn parse_path(&mut self) -> Result<PathBuf> {
+        let path = self.consume_token_until("\n")?;
+        let path = PathBuf::from_str(path)?;
+        Ok(path)
     }
 
     pub fn remain(&self) -> &str {

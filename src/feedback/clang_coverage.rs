@@ -1,14 +1,15 @@
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
-use crate::execution::Executor;
 use crate::{deopt::utils::get_file_dirname, feedback::observer::Observer};
+use crate::{execution::Executor, program::serde::Deserializer};
 
 use super::branches::{parse_branch, Branch};
 
@@ -117,10 +118,10 @@ impl CovSummary {
     }
 
     pub fn has_new_coverage(&self, pre: &Self) -> bool {
-        self.count_covered_branches() > pre.count_covered_branches() ||
-        self.count_covered_functions() > pre.count_covered_functions() ||
-        self.count_covered_lines() > pre.count_covered_lines() ||
-        self.count_covered_regions() > pre.count_covered_regions()
+        self.count_covered_branches() > pre.count_covered_branches()
+            || self.count_covered_functions() > pre.count_covered_functions()
+            || self.count_covered_lines() > pre.count_covered_lines()
+            || self.count_covered_regions() > pre.count_covered_regions()
     }
 }
 
@@ -236,7 +237,8 @@ impl CodeCoverage {
     }
 
     pub fn has_new_coverage(&self, pre_cov: &Self) -> bool {
-        self.get_total_summary().has_new_coverage(pre_cov.get_total_summary())
+        self.get_total_summary()
+            .has_new_coverage(pre_cov.get_total_summary())
     }
 
     pub fn display(&self) {
@@ -275,6 +277,90 @@ impl CodeCoverage {
     }
 }
 
+#[derive(Default, Serialize, Deserialize)]
+pub struct GlobalFeature {
+    features: HashSet<u32>,
+}
+
+impl GlobalFeature {
+    pub fn insert_feature(&mut self, fe: u32) -> bool {
+        self.features.insert(fe)
+    }
+
+    pub fn init_by_corpus(executor: &Executor, fuzzer: &Path) -> Result<Self> {
+        let mut gf = Self::default();
+
+        let work_dir = get_file_dirname(fuzzer);
+        let control_file: PathBuf = [work_dir, "merge_control_file".into()].iter().collect();
+        executor.minimize_by_control_file(
+            &fuzzer,
+            &executor.deopt.get_library_shared_corpus_dir()?,
+            &control_file,
+        )?;
+        if !control_file.exists() {
+            panic!("{control_file:?} does not exist!");
+        }
+        let corpora_features = CorporaFeatures::parse(&control_file)?;
+        let corpus_size = corpora_features.get_size();
+        for i in 0..corpus_size {
+            for fe in corpora_features.get_nth_feature(i) {
+                gf.insert_feature(*fe);
+            }
+        }
+        std::fs::remove_file(control_file)?;
+        Ok(gf)
+    }
+}
+
+pub struct CorporaFeatures {
+    files: Vec<PathBuf>,
+    features: Vec<Vec<u32>>,
+}
+
+impl CorporaFeatures {
+    pub fn parse(path: &Path) -> Result<Self> {
+        let buf = std::fs::read_to_string(path)?;
+        let mut de = Deserializer::from_input(&buf);
+        let total: u32 = de.parse_number()?;
+        let _pre: u32 = de.parse_number()?;
+        assert_eq!(_pre, 0);
+        let mut files = Vec::new();
+        for _ in 0..total {
+            let corpora = de.parse_path()?;
+            files.push(corpora);
+        }
+        let mut features = Vec::new();
+        for _ in 0..total {
+            de.consume_token_until("STARTED")?;
+            let _fileid: u32 = de.parse_number()?;
+            let _filesize: u32 = de.parse_number()?;
+            de.eat_token("FT")?;
+            let feature_list = de.consume_token_until("\n")?;
+            let mut feature: Vec<u32> = feature_list
+                .split(' ')
+                .map(|x| x.parse::<u32>().expect("parse coverge feature error."))
+                .collect();
+            feature.remove(0);
+            features.push(feature);
+            de.eat_token("COV")?;
+        }
+        let se = Self { files, features };
+        Ok(se)
+    }
+
+    pub fn get_size(&self) -> usize {
+        self.files.len()
+    }
+
+    pub fn get_nth_feature(&self, nth: usize) -> &Vec<u32> {
+        &self.features[nth]
+    }
+
+    pub fn get_nth_file(&self, nth: usize) -> &Path {
+        &self.files[nth]
+    }
+}
+
 impl Executor {
     pub fn convert_profraw_to_profdata(&self, profraw: &Path, profdata: &Path) -> Result<()> {
         let output = Command::new("llvm-profdata")
@@ -292,15 +378,11 @@ impl Executor {
 
     pub fn merge_profdata(profraw_files: &Vec<PathBuf>, profdata: &Path) -> Result<()> {
         let mut output = Command::new("llvm-profdata");
-        let cmd = output
-            .arg("merge")
-            .arg("-sparse");
+        let cmd = output.arg("merge").arg("-sparse");
         for prof_file in profraw_files {
             cmd.arg(prof_file);
         }
-        let output = cmd.arg("-o")
-            .arg(profdata)
-            .output()?;
+        let output = cmd.arg("-o").arg(profdata).output()?;
         if !output.status.success() {
             eyre::bail!("obtain coverage from profraw fail! :{profraw_files:?}")
         }
@@ -424,7 +506,7 @@ impl Executor {
 
         // run fuzzer with cov on each corpus file.
         let profdata: PathBuf = crate::deopt::Deopt::get_coverage_file_by_dir(fuzzer_dir);
-        self.execute_cov_fuzzer_pool(&fuzzer_binary, &minimized_corpus, &profdata)?;
+        self.execute_cov_fuzzer_pool(&fuzzer_binary, vec![&minimized_corpus], &profdata)?;
         Ok(())
     }
 
@@ -713,6 +795,16 @@ mod tests {
             ]
         );
         assert_eq!(gsv.compute_line_coverage(), 1_f32);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_corpora_features() -> Result<()> {
+        let mut mcf = Deopt::get_crate_testsuit_dir()?;
+        mcf.push("corpora");
+        mcf.push("merge_control_file");
+        let cf = CorporaFeatures::parse(&mcf)?;
+        assert_eq!(cf.get_size(), 252);
         Ok(())
     }
 }

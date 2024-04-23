@@ -36,14 +36,15 @@ impl Deopt {
             }
         }
         unreachable!("cannot get seed {seed_id} from seed queue")
-    } 
+    }
 
     pub fn select_seed_from_queue(&mut self) -> &Program {
         assert!(!self.seed_queue.is_empty());
-        let qualities: Vec<f32> = self.seed_queue
-        .iter()
-        .map(|seed| seed.get_weight())
-        .collect();
+        let qualities: Vec<f32> = self
+            .seed_queue
+            .iter()
+            .map(|seed| seed.get_weight())
+            .collect();
         let choose = crate::program::rand::weighted_choose(qualities);
         self.seed_queue[choose].increase_visited();
         let program = &self.seed_queue[choose];
@@ -58,11 +59,12 @@ impl Deopt {
             self.save_program(program).unwrap();
             return program;
         }
-        let mut seed_queue: Vec<&mut Program> = self.seed_queue.iter_mut().filter(|x| x.id != seed.id).collect();
-        let qualities: Vec<f32> = seed_queue
-            .iter()
-            .map(|seed| seed.get_weight())
+        let mut seed_queue: Vec<&mut Program> = self
+            .seed_queue
+            .iter_mut()
+            .filter(|x| x.id != seed.id)
             .collect();
+        let qualities: Vec<f32> = seed_queue.iter().map(|seed| seed.get_weight()).collect();
         let choose = crate::program::rand::weighted_choose(qualities);
         seed_queue[choose].increase_visited();
         let select = seed_queue[choose].id;
@@ -71,7 +73,12 @@ impl Deopt {
         program
     }
 
-    pub fn update_seed_queue(&mut self, program: Program, coverage: &CodeCoverage, has_new: bool) -> Result<()> {
+    pub fn update_seed_queue(
+        &mut self,
+        program: Program,
+        coverage: &CodeCoverage,
+        has_new: bool,
+    ) -> Result<()> {
         if has_new {
             self.update_seed_unique_branches(coverage);
             self.save_program(&program)?;
@@ -116,6 +123,18 @@ impl Deopt {
         Ok(build_dir)
     }
 
+    pub fn get_crate_testsuit_dir() -> Result<PathBuf> {
+        let testsuit_dir: PathBuf = [Deopt::get_crate_dir()?, "testsuites"].iter().collect();
+        Ok(testsuit_dir)
+    }
+
+    /// get the internal coverage instrument ignorelist file.
+    pub fn get_coverage_bl_file_name() -> Result<String> {
+        let bl_file: PathBuf = [Deopt::get_crate_dir()?, "ban_all.txt"].iter().collect();
+        let name = bl_file.to_string_lossy().to_string();
+        Ok(name)
+    }
+
     pub fn new(project_name: &'static str) -> Result<Self> {
         let mut deopt = Deopt::default();
         deopt.project_name = project_name;
@@ -134,7 +153,8 @@ impl Deopt {
         let data = self.get_library_data_dir()?;
         let config_path: PathBuf = [data, "config.yaml".into()].iter().collect();
         let content = std::fs::read_to_string(config_path)?;
-        let config: LibConfig = serde_yaml::from_str(&content).context("fail to parse yaml config file, please check your syntax")?;
+        let config: LibConfig = serde_yaml::from_str(&content)
+            .context("fail to parse yaml config file, please check your syntax")?;
         Ok(config)
     }
 
@@ -334,8 +354,8 @@ impl Deopt {
                 .collect();
             cmd.arg(format!("-L{}", ld_path.to_str().unwrap()));
             let ld_path: PathBuf = [self.get_library_build_dir()?, "work".into(), "lib64".into()]
-            .iter()
-            .collect();
+                .iter()
+                .collect();
             cmd.arg(format!("-L{}", ld_path.to_str().unwrap()));
             for flag in flags {
                 cmd.arg(flag);
@@ -355,20 +375,13 @@ impl Deopt {
         Ok(corpus_dir)
     }
 
-    pub fn get_library_shared_corpus_profraw_dir(&self) -> Result<PathBuf> {
+    pub fn get_library_global_feature_file(&self) -> Result<PathBuf> {
         let temp_dir = self.get_library_misc_dir()?;
-        let profraw_dir: PathBuf = [temp_dir, "profraw".into()].iter().collect();
-        create_dir_if_nonexist(&profraw_dir)?;
-        Ok(profraw_dir)
-    }
-
-    pub fn get_library_shared_corpus_profdata(&self) -> Result<PathBuf> {
-        let temp_dir = self.get_library_misc_dir()?;
-        let profdata = [temp_dir, "default.profdata".into()].iter().collect();
+        let profdata = [temp_dir, "global_features".into()].iter().collect();
         Ok(profdata)
     }
 
-    pub fn copy_file_to_shared_corpus(&self, instresting_files: Vec<PathBuf>) -> Result<()> {
+    pub fn copy_file_to_shared_corpus(&self, instresting_files: Vec<&Path>) -> Result<()> {
         let corpus_dir = self.get_library_shared_corpus_dir()?;
         for file in instresting_files {
             let dst: PathBuf = [
@@ -518,7 +531,9 @@ impl Deopt {
     }
 
     pub fn get_coverage_file_by_dir(work_dir: &Path) -> PathBuf {
-        [work_dir.to_path_buf(), "default.profdata".into()].iter().collect()
+        [work_dir.to_path_buf(), "default.profdata".into()]
+            .iter()
+            .collect()
     }
 
     pub fn get_seed_coverage_file(&self, id: usize) -> Result<PathBuf> {
@@ -649,14 +664,6 @@ pub mod utils {
         Ok(())
     }
 
-    pub fn count_dir_entires(dir: &Path) -> Result<usize> {
-        if !dir.exists() {
-            return Ok(0);
-        }
-        let entries = std::fs::read_dir(dir)?;
-        Ok(entries.count())
-    }
-
     /// read the directory and sort the entries by the alphabet oder
     pub fn read_sort_dir(dir: &Path) -> Result<Vec<PathBuf>> {
         let mut entries = Vec::new();
@@ -672,13 +679,6 @@ pub mod utils {
         }
         entries.sort();
         Ok(entries)
-    }
-
-    pub fn get_newly_added_files(old_dir: &Path, new_dir: &Path) -> Result<Vec<PathBuf>> {
-        let old_files = read_sort_dir(old_dir)?;
-        let now_files = read_sort_dir(new_dir)?;
-        let new_files: Vec<PathBuf> = now_files.iter().filter(|x| !old_files.contains(x)).cloned().collect();
-       Ok(new_files)
     }
 
     /// format the headers of this library that should include as a single String.

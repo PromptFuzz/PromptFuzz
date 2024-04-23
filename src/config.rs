@@ -120,6 +120,16 @@ pub fn get_sample_num() -> u8 {
     get_config().n_sample
 }
 
+
+pub fn get_minimize_compile_flag() -> &'static str {
+    static MIN_FLAG: OnceCell<String> = OnceCell::new();
+    MIN_FLAG.get_or_init(||{
+        let mut minimize_flag: String = "-fsanitize-coverage-ignorelist=".into();
+        let bl_file = Deopt::get_coverage_bl_file_name().unwrap();
+        minimize_flag.push_str(&bl_file);
+        minimize_flag
+    })
+}
 pub fn parse_config() -> eyre::Result<()> {
     let config = Config::parse();
     unsafe {CONFIG_INSTANCE = Some(config);}

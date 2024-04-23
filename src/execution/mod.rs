@@ -4,7 +4,7 @@ pub mod pch;
 pub mod sanitize;
 
 use self::logger::ProgramError;
-use crate::config::get_config;
+use crate::config::{get_config, get_minimize_compile_flag};
 use crate::program::libfuzzer::respawn_libfuzzer_process;
 use crate::program::transform::Transformer;
 use crate::{
@@ -39,6 +39,7 @@ pub enum Compile {
     SANITIZE,
     FUZZER,
     COVERAGE,
+    Minimize,
 }
 
 #[derive(Default, Clone)]
@@ -76,6 +77,13 @@ impl Executor {
                 let flags = crate::config::COVERAGE_FLAGS.to_vec();
                 let cov_lib = crate::deopt::utils::get_cov_lib_path(&self.deopt, false);
                 (flags, cov_lib)
+            }
+            Compile::Minimize => {
+                let mut flags = crate::config::FUZZER_FLAGS.to_vec();
+                let min_flag = get_minimize_compile_flag();
+                flags.push(&min_flag);
+                let fuzz_lib = crate::deopt::utils::get_fuzzer_lib_path(&self.deopt);
+                (flags, fuzz_lib)
             }
         };
         (cflags, lib)
@@ -253,7 +261,7 @@ impl Executor {
         None
     }
 
-    pub fn execute_fuzzer(&self, fuzzer: &Path, corpus: &Path) -> Result<()> {
+    pub fn execute_fuzzer(&self, fuzzer: &Path, corpus: Vec<&Path>) -> Result<()> {
         // make up corpus for each standalone fuzzer.
         let dict = self.deopt.get_library_build_dict_path()?;
 
@@ -262,7 +270,10 @@ impl Executor {
             .iter()
             .collect();
 
-        let mut extra_args = vec![corpus.as_os_str().to_os_string()];
+        let mut extra_args: Vec<OsString> = corpus
+            .iter()
+            .map(|x| x.as_os_str().to_os_string())
+            .collect();
         if dict.exists() {
             let dict_arg = format!("-dict={}", dict.to_string_lossy());
             extra_args.push(OsString::from(dict_arg));
@@ -318,7 +329,12 @@ impl Executor {
         }
     }
 
-    pub fn execute_cov_fuzzer(&self, fuzzer_binary: &Path, corpus_dir: &Path, profraw: &Path) -> Result<()> {
+    pub fn execute_cov_fuzzer(
+        &self,
+        fuzzer_binary: &Path,
+        corpus_dir: &Path,
+        profraw: &Path,
+    ) -> Result<()> {
         let extra_envs = vec![(OsStr::new("LLVM_PROFILE_FILE"), profraw.as_os_str())];
         let extra_args = vec![OsStr::new("-runs=0"), corpus_dir.as_os_str()];
         let mut child = self.spawn(fuzzer_binary, extra_args, extra_envs, None, None, false);
@@ -343,7 +359,7 @@ impl Executor {
     pub fn execute_cov_fuzzer_pool(
         &self,
         fuzzer_binary: &Path,
-        corpus_dir: &Path,
+        corpus_dirs: Vec<&Path>,
         profdata: &Path,
     ) -> Result<()> {
         let fuzzer_dir = get_file_dirname(fuzzer_binary);
@@ -352,22 +368,35 @@ impl Executor {
             std::fs::remove_dir_all(&profraw_dir)?;
         }
         crate::deopt::utils::create_dir_if_nonexist(&profraw_dir)?;
-        let corpus_files = crate::deopt::utils::read_sort_dir(corpus_dir)?;
+        let corpus_files: Vec<Vec<PathBuf>> = corpus_dirs
+            .iter()
+            .map(|dir| crate::deopt::utils::read_sort_dir(dir).expect("read dir should not fial"))
+            .collect();
+        let corpus_files: Vec<PathBuf> = corpus_files.concat();
         let cpu_count = max_cpu_count();
         let pool = ThreadPool::new(cpu_count);
 
         for (id, corpus_file) in corpus_files.iter().enumerate() {
             let binary = fuzzer_binary.to_path_buf();
             let corpus_file = corpus_file.to_path_buf();
-            let corpus_name = corpus_file.file_name().expect("file name of corpus file should not be empty").to_string_lossy().to_string();
-            let profraw_file: PathBuf = [PathBuf::from(&profraw_dir), format!("{corpus_name}.profraw").into()]
-                .iter()
-                .collect();
+            let corpus_name = corpus_file
+                .file_name()
+                .expect("file name of corpus file should not be empty")
+                .to_string_lossy()
+                .to_string();
+            let profraw_file: PathBuf = [
+                PathBuf::from(&profraw_dir),
+                format!("{corpus_name}.profraw").into(),
+            ]
+            .iter()
+            .collect();
             let len = corpus_files.len();
             let executor = self.clone();
 
             pool.execute(move || {
-                executor.execute_cov_fuzzer(&binary, &corpus_file, &profraw_file).unwrap();
+                executor
+                    .execute_cov_fuzzer(&binary, &corpus_file, &profraw_file)
+                    .unwrap();
                 log::trace!("execute fuzz_cov on corpus finished {id}/{}", len);
             });
         }
@@ -375,6 +404,7 @@ impl Executor {
 
         let profraws = crate::deopt::utils::read_all_files_in_dir(&profraw_dir)?;
         Self::merge_profdata(&profraws, profdata)?;
+        std::fs::remove_dir_all(profraw_dir)?;
         Ok(())
     }
 
@@ -382,7 +412,7 @@ impl Executor {
         &self,
         fuzzer_code: Option<&Path>,
         fuzzer_binary: &Path,
-        corpus_dir: &Path,
+        corpus_dir: Vec<&Path>,
     ) -> Result<CodeCoverage> {
         let work_dir = get_file_dirname(fuzzer_binary);
         let profdata: PathBuf = crate::deopt::Deopt::get_coverage_file_by_dir(&work_dir);
@@ -420,6 +450,34 @@ impl Executor {
         if !output.status.success() {
             eyre::bail!("Fail to merge corpus in {fuzzer_binary:?}")
         }
+        Ok(())
+    }
+
+    pub fn minimize_by_control_file(
+        &self,
+        fuzzer_binary: &Path,
+        corpus: &Path,
+        control_file: &Path,
+    ) -> Result<()> {
+        let work_dir = get_file_dirname(fuzzer_binary);
+        let minimize_dir: PathBuf = [work_dir, "temp_minimize".into()].iter().collect();
+        crate::deopt::utils::create_dir_if_nonexist(&minimize_dir)?;
+        let mcf_arg = format!(
+            "-merge_control_file={}",
+            control_file.to_string_lossy().to_string()
+        );
+        let extra_args = vec![
+            OsStr::new("-merge=1"),
+            OsStr::new(&mcf_arg),
+            minimize_dir.as_os_str(),
+            corpus.as_os_str(),
+        ];
+        let child = self.spawn(fuzzer_binary, extra_args, vec![], None, None, false);
+        let output = child.wait_with_output()?;
+        if !output.status.success() {
+            eyre::bail!("Fail to merge corpus in {fuzzer_binary:?}")
+        }
+        std::fs::remove_dir_all(minimize_dir)?;
         Ok(())
     }
 
@@ -670,7 +728,7 @@ impl Executor {
         let profdata: PathBuf = self.deopt.get_seed_coverage_file(seed_id)?;
         self.compile_seed(seed_id)?;
 
-        self.execute_cov_fuzzer_pool(&fuzzer_binary, &corpus_dir, &profdata)?;
+        self.execute_cov_fuzzer_pool(&fuzzer_binary, vec![&corpus_dir], &profdata)?;
         Ok(())
     }
 }
@@ -701,7 +759,6 @@ pub fn get_child_err(mut err: ChildStderr) -> String {
     let err_msg = String::from_utf8_lossy(&err_buf).to_string();
     err_msg
 }
-
 
 // mkdir the directory "corpus" under the same directory of fuzzer.
 fn mkdir_fuzzer_corpus(fuzzer_path: &Path) -> PathBuf {
@@ -791,21 +848,6 @@ mod tests {
         let res = executor.concurrent_check(&programs, 2)?;
         assert_eq!(programs.len(), res.len());
         println!("{res:#?}");
-        Ok(())
-    }
-
-    #[test]
-    fn test_collect_code_coverage() -> Result<()> {
-        crate::config::Config::init_test("libmagic");
-        let deopt = Deopt::new("libmagic")?;
-        let executor = Executor::new(&deopt)?;
-        let mut fuzzer_dir = deopt.get_library_fuzzer_dir(false)?;
-        fuzzer_dir.push("Fuzzer_000");
-        let mut fuzzer_binary = fuzzer_dir.clone();
-        fuzzer_binary.push("fuzzer_cov");
-        let mut corpus_dir = fuzzer_dir;
-        corpus_dir.push("corpus");
-        executor.collect_code_coverage(None, &fuzzer_binary, &corpus_dir)?;
         Ok(())
     }
 }
