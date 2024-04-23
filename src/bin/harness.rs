@@ -220,6 +220,7 @@ fn compile_fuzzer(project: &'static str, kind: Compile, exploit: bool) -> Result
                 Compile::SANITIZE => "fuzzer_san",
                 Compile::FUZZER => "fuzzer",
                 Compile::COVERAGE => "fuzzer_cov",
+                Compile::Minimize => "fuzzer_evo",
             };
             let fuzzer_binary: PathBuf = [fuzzer_dir.clone(), fuzzer_name.into()].iter().collect();
             executor.compile_lib_fuzzers(
