@@ -91,6 +91,7 @@ impl Executor {
 
         // execute fuzzer for duration timeout.
         let corpus_dir: PathBuf = [work_dir, "corpus".into()].iter().collect();
+        crate::deopt::utils::create_dir_if_nonexist(&corpus_dir)?;
 
         let res = self.execute_fuzzer(
             &binary_out,
