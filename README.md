@@ -1,5 +1,5 @@
 # Prompt Fuzzing for Fuzz Driver Generation
-PromtFuzz is an automated tool that generates high-quality fuzz drivers for libraries via a fuzz loop constructed on mutating LLMs' prompts. The fuzz loop of PromptFuzz aims to guide the mutation of LLMs' prompts to generate programs that cover more reachable code and explore complex API interrelationships, which are effective for fuzzing.
+PromptFuzz is an automated tool that generates high-quality fuzz drivers for libraries via a fuzz loop constructed on mutating LLMs' prompts. The fuzz loop of PromptFuzz aims to guide the mutation of LLMs' prompts to generate programs that cover more reachable code and explore complex API interrelationships, which are effective for fuzzing.
 
 ![workflow](workflow.png)
 
@@ -10,7 +10,7 @@ PromptFuzz is currently regarded as the leading approach for generating fuzz dri
 
 
 ## ✨Features
-- **Multiply LLM support**: Supports the general LLMs: Codex, Inocder, ChatGPT, and GPT4 (Currently tested on ChatGPT).
+- **Multiply LLM support**: Supports the general LLMs: Codex, Incoder, ChatGPT, and GPT4 (Currently tested on ChatGPT).
 - **Context-based Prompt**: Construct LLM prompts with the automatically extracted library context.
 - **Powerful Sanitization**: The program's syntax, semantics, behavior, and coverage are thoroughly analyzed to sanitize the problematic programs.
 - **Prioritized Mutation**: Prioritizes mutating the library API combinations within LLM's prompts to explore complex interrelationships, guided by code coverage.
@@ -51,7 +51,7 @@ PromptFuzz detects uniquely interesting bugs:
 | 23.         | c-ares           | config_sortlist                         | Memory Leak                | Confirmed       | [d62627](https://github.com/c-ares/c-ares/commit/d62627e8b39ef793c3b1c7b054724b0d581eb4fb)           |
 | 24.         | c-ares           | config_sortlist                         | Memory Leak                | Confirmed       | [d62627](https://github.com/c-ares/c-ares/commit/d62627e8b39ef793c3b1c7b054724b0d581eb4fb)           |
 | 25.         | libjpeg-turbo    | tj3DecodeYUV8                           | Integer Overflow                | Confirmed       | [78eaf0](https://github.com/libjpeg-turbo/libjpeg-turbo/security/advisories/GHSA-x7cp-qgf3-9896)           |
-| 26.         | libjepg-turbo    | tj3LoadImage16                          | OOM               | Confirmed       | [735](https://github.com/libjpeg-turbo/libjpeg-turbo/issues/735)               |
+| 26.         | libjpeg-turbo    | tj3LoadImage16                          | OOM               | Confirmed       | [735](https://github.com/libjpeg-turbo/libjpeg-turbo/issues/735)               |
 | 27.         | libpcap          | pcap_create                             | File Leak               | Confirmed       | [1233](https://github.com/the-tcpdump-group/libpcap/issues/1233)              |
 | 28.         | libpcap          | pcapint_create_interface                | Null Pointer crash                | Confirmed       | [1239](https://github.com/the-tcpdump-group/libpcap/issues/1239)              |
 | 29.         | libpcap          | pcapint_fixup_pcap_pkthdr               | Misaligned Address               | Confirmed       | -                 |             |
@@ -73,7 +73,7 @@ docker run -it promptfuzz bash
 Before you apply this fuzzer for a new project, you **must** have a automatic build script to build your project to prepare the required data (e.g., headers, link libraries, fuzzing corpus and etc.), like [OSS-Fuzz](https://github.com/google/oss-fuzz). See [Preparation](data/README.md).
 
 
-We have parpared the build scripts for some popular open source libraries, you can refer to the **data** directory.
+We have prepared the build scripts for some popular open source libraries, you can refer to the **data** directory.
 
 
 
@@ -161,7 +161,7 @@ And, you can execute the fuzzers you fused:
 `cargo run --bin harness -- libaom fuzzer-run`
 
 > Note that, promptfuzz implements the mechanism to detect the crashed program inside the fused fuzz driver.
- If a crash of a program has detected, promptfuzz will disable the code of the crashed program, which enables an continously fuzzing. So, ensure that executing the fuzz drivers in PromptFuzz.
+ If a crash of a program has detected, promptfuzz will disable the code of the crashed program, which enables an continuously fuzzing. So, ensure that executing the fuzz drivers in PromptFuzz.
 
 After 24 hours execution(s), you should deduplicate the reported crashes by PromptFuzz:
 
@@ -201,7 +201,7 @@ enum Commands {
     },
     /// Fuse the programs in seeds to fuzzers.
     FuseFuzzer {
-        /// transfrom fuzzer with constaints
+        /// transform fuzzer with constraints
         #[arg(short, default_value = "true")]
         use_cons: bool,
         /// the number of condensed fuzzer you want to fuse
@@ -235,7 +235,7 @@ enum Commands {
         #[arg(short = 'u', default_value = "true")]
         exploit: bool,
     },
-    /// infer constriants
+    /// infer constraints
     Infer,
     /// Minimize the seeds by unique branches.
     Minimize,
@@ -258,6 +258,6 @@ enum Commands {
 ```
 
 ## 🎈Future Works
-- **Custom LLMs suport:** Support custom LLMs.
+- **Custom LLMs support:** Support custom LLMs.
 - **Close-source libraries:** Apply PromptFuzz to close-source libraries by fine tuning LLMs on private code corpus.
 - **Performance**: Reduce the huge time cost required in erroneous program elimination.

@@ -42,7 +42,7 @@ enum Commands {
     },
     /// Fuse the programs in seeds to fuzzers.
     FuseFuzzer {
-        /// transfrom fuzzer with constaints
+        /// transform fuzzer with constraints
         #[arg(short, default_value = "true")]
         use_cons: bool,
         /// the number of condensed fuzzer you want to fuse
@@ -76,7 +76,7 @@ enum Commands {
         #[arg(short = 'u', default_value = "true")]
         exploit: bool,
     },
-    /// infer constriants
+    /// infer constraints
     Infer,
     /// Minimize the seeds by unique branches.
     Minimize,
@@ -156,7 +156,7 @@ fn collect_cov(project: &'static str, kind: &CoverageKind, exploit: bool) -> Exi
     }
     let executor = Executor::new(&deopt).unwrap();
     match kind {
-        // collect the library code coverage from all the syntiesized fuzzers.
+        // collect the library code coverage from all the synthesized fuzzers.
         CoverageKind::Collect => {
             let res = executor.collect_lib_cov_all_fuzzers(&fuzzers_dir);
             if let Err(err) = res {
