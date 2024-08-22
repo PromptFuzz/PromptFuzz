@@ -260,4 +260,4 @@ enum Commands {
 ## 🎈Future Works
 - **Custom LLMs suport:** Support custom LLMs.
 - **Close-source libraries:** Apply PromptFuzz to close-source libraries by fine tuning LLMs on private code corpus.
-- **Performance**: Reduce the huge time cost required in erroneous program elimination.
+- **Generalization**: Generalize PromptFuzz to binary programs.
