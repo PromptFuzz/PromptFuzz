@@ -23,7 +23,7 @@ use super::{
 };
 
 impl Executor {
-    /// check whether the c porgram is syntaxically and semantically correct.
+    /// check whether the c program is syntactically and semantically correct.
     fn is_program_syntax_correct(&self, program_path: &Path) -> Result<Option<ProgramError>> {
         let time_logger = TimeUsage::new(get_file_dirname(program_path));
         let output: std::process::Output = Command::new("clang++")
