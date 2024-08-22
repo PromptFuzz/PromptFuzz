@@ -115,7 +115,7 @@ impl LibFuzzer {
         }
     }
 
-    // Only transfrom the program to the Libfuzzer kind with the minimal pre-procession.
+    // Only transform the program to the Libfuzzer kind with the minimal pre-procession.
     fn normal_transform(&self) -> Result<()> {
         log::info!("Transform the correct programs to fuzzers!");
 

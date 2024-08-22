@@ -105,8 +105,8 @@ impl<'a> Transformer<'a> {
         Ok(ast)
     }
 
-    /// Given the sequence numbers of fuzzable arguments, transfrom those arguments to receive fuzzer engine's bytes.
-    /// The transformation statisifies th passed canstraints.
+    /// Given the sequence numbers of fuzzable arguments, transform those arguments to receive fuzzer engine's bytes.
+    /// The transformation satisfies th passed constraints.
     /// nths: the sequence numbers of the arguments you want to transform.
     pub fn transform_to_fuzzer(
         &mut self,
@@ -159,7 +159,7 @@ impl<'a> Transformer<'a> {
         Ok(changable_args)
     }
 
-    /// get the number of fuzzable arguments wait to be transfromed to receive fuzzer's bytes in this program.
+    /// get the number of fuzzable arguments wait to be transformed to receive fuzzer's bytes in this program.
     pub fn get_transform_len(&mut self, constraints: &APIConstraints) -> Result<usize> {
         let visitor = self.get_new_visitor()?;
         let fuzz_variants = visitor.collect_fuzzable_variants(&visitor, constraints);
@@ -234,7 +234,7 @@ impl<'a> Transformer<'a> {
         if let Some(constraint) = constraint {
             match constraint {
                 Constraint::ArrayLen((array_pos, integer_pos)) => {
-                    // format the decalation name and type of this array var.
+                    // format the declaration name and type of this array var.
                     let arg_ty = get_func_arg_decl_type(call, *integer_pos);
                     let fuzz_size = if arg_ty.contains('*') {
                         format!("static_cast<{arg_ty}>(&fuzz_str_sz_{init_id})")
@@ -251,7 +251,7 @@ impl<'a> Transformer<'a> {
                     }
                 }
                 Constraint::ArrayIndex((array_pos, integer_pos)) => {
-                    // format the decalation name and type of this array var.
+                    // format the declaration name and type of this array var.
                     let arg_ty = get_func_arg_decl_type(call, *integer_pos);
                     let index_stmt = format!("\n\tFDPGetRandomInteger({arg_ty}, fuzz_str_idx_{init_id}, fuzz_str_sz_{init_id});");
                     let fuzz_size = if arg_ty.contains('*') {
@@ -712,7 +712,7 @@ impl<'a> Transformer<'a> {
         arg_pos: usize,
         constraint: &Option<Constraint>,
     ) -> Result<()> {
-        // format the decalation name and type of this array var.
+        // format the declaration name and type of this array var.
         let array_var_name = format!("fuzzer_var_{call_name}_{n_call}_{arg_pos}");
         let array_decl_type = get_call_arg_type(call, arg_pos);
         let mut array_decl_name: String = format!("{array_decl_type} {array_var_name}");
@@ -735,7 +735,7 @@ impl<'a> Transformer<'a> {
         if let Some(constraint) = constraint {
             match &constraint {
                 Constraint::ArrayLen((array_pos, integer_pos)) => {
-                    // format the decalation name and type of this array var.
+                    // format the declaration name and type of this array var.
                     let size_decl_type = get_call_arg_type(call, *integer_pos);
                     let size_decl_name = format!("fuzzer_size_{call_name}_{n_call}_{arg_pos}");
 
@@ -751,7 +751,7 @@ impl<'a> Transformer<'a> {
                     self.make_unlimit_list_expr_fuzzable(&array_decl_name, ile, size_arg)?;
                 }
                 Constraint::WeakArrayLen((array_pos, integer_pos)) => {
-                    // format the decalation name and type of this array var.
+                    // format the declaration name and type of this array var.
                     let size_decl_type = get_call_arg_type(call, *integer_pos);
                     let size_decl_name = format!("fuzzer_size_{call_name}_{n_call}_{arg_pos}");
 
@@ -767,7 +767,7 @@ impl<'a> Transformer<'a> {
                     self.make_unlimit_list_expr_fuzzable(&array_decl_name, ile, size_arg)?;
                 }
                 Constraint::ArrayIndex((array_pos, integer_pos)) => {
-                    // format the decalation name and type of this array var.
+                    // format the declaration name and type of this array var.
                     let size_decl_name = format!("fuzzer_index_{call_name}_{n_call}_{arg_pos}");
                     let size_decl_type = get_call_arg_type(call, *integer_pos);
                     let size_arg = Some((size_decl_name.as_str(), size_decl_type.as_str(), 1));
