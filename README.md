@@ -35,7 +35,7 @@ PromptFuzz detects uniquely interesting bugs:
 | 7.          | libvpx           | vp8e_encode                             | Integer Overflow                | Confirmed       | [1828](https://bugs.chromium.org/p/webm/issues/detail?id=1828)              |
 | 8.          | libvpx           | encode_mb_row                           | Integer Overflow                | Confirmed       | [1831](https://bugs.chromium.org/p/webm/issues/detail?id=1831)              |
 | 9.          | libvpx           | vpx_free_tpl_gop_stats                  | SEGV                | Confirmed       | [1837](https://bugs.chromium.org/p/webm/issues/detail?id=1837)              |           |
-| 10.         | libmagic         | apprentice_map                          | Buffer Overflow                | Waiting         | [481](https://bugs.astron.com/view.php?id=481)               |
+| 10.         | libmagic         | apprentice_map                          | Buffer Overflow                | Confirmed         | [481](https://bugs.astron.com/view.php?id=481)               |
 | 11.         | libmagic         | magic_setparam                          | Buffer Overflow                | Waiting         | [482](https://bugs.astron.com/view.php?id=482)               |
 | 12.         | libmagic         | check_buffer                            | Buffer Overflow                | Confirmed         | [483](https://bugs.astron.com/view.php?id=483)               |
 | 13.         | libmagic         | mget                                    | Integer Overflow                | Waiting         | [486](https://bugs.astron.com/view.php?id=486)               |
