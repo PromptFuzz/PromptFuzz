@@ -60,55 +60,6 @@ PromptFuzz detects uniquely interesting bugs:
 | 32.         | cJSON            | cJSON_DeleteItemFromObjectCaseSensitive | TimeOut                | Confirmed       | [807](https://github.com/DaveGamble/cJSON/issues/807)               |
 | 33.         | curl             | parseurl                                | Assertion Failure      | Confirmed       | [12775](https://github.com/curl/curl/pull/12775) |
 
-## 🔧 Build Pre-requisites
-
-### 1. 🐳Using Docker (Recommend)
-You can use the [Dockerfile](Docekrfile) to build the environment:
-```
-docker build -t promptfuzz .
-docker run -it promptfuzz bash
-```
-
-### 2. Library build scripts
-Before you apply this fuzzer for a new project, you **must** have a automatic build script to build your project to prepare the required data (e.g., headers, link libraries, fuzzing corpus and etc.), like [OSS-Fuzz](https://github.com/google/oss-fuzz). See [Preparation](data/README.md).
-
-
-We have prepared the build scripts for some popular open source libraries, you can refer to the **data** directory.
-
-
-
-### 3. Build Environment Locally (Optional)
-If you prefer to set up the environment locally instead of using Docker, you can follow the instructions below:
-
-**Requirements:**
-- Rust stable
-- LLVM and Clang (built with compiler-rt)
-- wllvm (installed by `pip3 install wllvm`)
-
-You can download llvm and clang from this [link](https://github.com/llvm/llvm-project/releases/tag/llvmorg-15.0.0) or install by [llvm.sh](https://apt.llvm.org/).
-
-Explicit dependency see [Dockerfile](Dockerfile).
-
-If you prefer build llvm manually, you can build clang with compiler-rt and libcxx from source code following the config:
-```
-cmake -S llvm -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;lld" \
- -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;compiler-rt;" \
- -DCMAKE_BUILD_TYPE=Release -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
- -DLIBCXXABI_ENABLE_SHARED=OFF  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ 
- ```
-
-### 4. LLM dependency (Optional)
-> Those custom LLMs have not been fully supported and tested in PromptFuzz. If you just want to use PromptFuzz, please choose ChatGPT or GPT4.
-
-Currently, the primary programming language used for implementation is **Rust**, while a few **Python** scripts are utilized to invoke specific LLM models.
-
-If you want to invoke the self-build LLMs (i.e., Incoder), the following is the requirements for building **Python** dependency:
-```
-- pytorch (pip3 install torch)
-- transformers (pip3 install transformers)
-- yaml (pip3 install PyYAML)
-- fastapi (pip3 install fastapi[all])
-```
 
 # Usage
 See in [Usage](USAGE.md)
