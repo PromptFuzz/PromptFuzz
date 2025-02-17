@@ -137,7 +137,12 @@ pub fn recheck(project: &'static str) -> Result<()> {
     Ok(())
 }
 
-pub fn fuzzer_run(project: &'static str, run_exploit: bool, time_limit: Option<u64>, minimize: Option<bool>) -> Result<()> {
+pub fn fuzzer_run(
+    project: &'static str,
+    run_exploit: bool,
+    time_limit: Option<u64>,
+    minimize: Option<bool>,
+) -> Result<()> {
     let deopt = Deopt::new(project)?;
     let executor = Executor::new(&deopt)?;
     executor.run_libfuzzer(run_exploit, time_limit, minimize)?;
@@ -223,11 +228,7 @@ fn compile_fuzzer(project: &'static str, kind: Compile, exploit: bool) -> Result
                 Compile::Minimize => "fuzzer_evo",
             };
             let fuzzer_binary: PathBuf = [fuzzer_dir.clone(), fuzzer_name.into()].iter().collect();
-            executor.compile_lib_fuzzers(
-                &fuzzer_dir,
-                &fuzzer_binary,
-                kind.clone(),
-            )?;
+            executor.compile_lib_fuzzers(&fuzzer_dir, &fuzzer_binary, kind.clone())?;
             deopt.copy_library_init_file(&fuzzer_dir)?;
         }
     }
@@ -371,7 +372,8 @@ fn main() -> ExitCode {
         Commands::FuzzerRun {
             use_cons,
             time_limit,
-            minimize } => {
+            minimize,
+        } => {
             let res = fuzzer_run(project, *use_cons, *time_limit, *minimize);
             if let Err(err) = res {
                 eprintln!("{}", err);
@@ -404,7 +406,9 @@ fn main() -> ExitCode {
             constraint_infer(project).unwrap();
         }
         Commands::SanitizeCrash { exploit } => sanitize_crash(project, *exploit).unwrap(),
-        Commands::Compile { kind, exploit } => compile_fuzzer(project, kind.clone(), *exploit).unwrap(),
+        Commands::Compile { kind, exploit } => {
+            compile_fuzzer(project, kind.clone(), *exploit).unwrap()
+        }
     };
     ExitCode::SUCCESS
 }

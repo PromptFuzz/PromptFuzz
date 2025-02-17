@@ -90,7 +90,6 @@ impl Handler for OpenAIHanler {
     }
 }
 
-
 fn get_openai_proxy() -> Option<String> {
     match std::env::var("OPENAI_PROXY_BASE") {
         Ok(base) => Some(base),
@@ -103,7 +102,11 @@ fn get_client() -> Result<&'static Client> {
     // read OpenAI API key form the env var (OPENAI_API_KEY).
     pub static CLIENT: OnceCell<Client> = OnceCell::new();
     let client = CLIENT.get_or_init(|| {
-        let http_client = reqwest::ClientBuilder::new().connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(60)).build().unwrap();
+        let http_client = reqwest::ClientBuilder::new()
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(60))
+            .build()
+            .unwrap();
         let client = if let Some(proxy) = get_openai_proxy() {
             Client::new().with_api_base(proxy)
         } else {
@@ -360,8 +363,7 @@ fn create_chat_request(
     let mut binding = CreateChatCompletionRequestArgs::default();
     let binding = if matches!(config.generative, LLMModel::GPT4) {
         binding.model(config::GPT4_MODEL)
-    }
-    else if tokens < config::CHATGPT_CONTEXT_LIMIT {
+    } else if tokens < config::CHATGPT_CONTEXT_LIMIT {
         binding.model(config::CHATGPT_MODEL)
     } else {
         binding.model(config::CHATGPT_MODEL_LONG)

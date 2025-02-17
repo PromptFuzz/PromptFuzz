@@ -19,7 +19,7 @@ use crate::{
     analysis::WorkList,
     ast::{
         self,
-        utils::{is_case_or_default_stmt, is_inner_contain_breakstmt, is_default_stmt},
+        utils::{is_case_or_default_stmt, is_default_stmt, is_inner_contain_breakstmt},
         Clang, CommomHelper,
     },
     program::gadget::is_library_api,

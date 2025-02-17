@@ -6,11 +6,12 @@ use std::{
 use crate::{
     analysis::{adg::ADG, cfg::CFGBuilder},
     config::get_config_mut,
+    deopt::utils::read_sort_dir,
     program::{
         gadget::{get_func_gadgets, FuncGadget},
         Program,
     },
-    Deopt, deopt::utils::read_sort_dir,
+    Deopt,
 };
 use eyre::Result;
 
@@ -312,7 +313,14 @@ mod tests {
         let deopt = Deopt::new("cJSON")?;
         let executor = Executor::new(&deopt)?;
 
-        let profdata: PathBuf = [Deopt::get_crate_dir()?, "testsuites", "corpora", "defualt.profdata"].iter().collect();
+        let profdata: PathBuf = [
+            Deopt::get_crate_dir()?,
+            "testsuites",
+            "corpora",
+            "defualt.profdata",
+        ]
+        .iter()
+        .collect();
         let coverage = Executor::obtain_cov_from_profdata(&executor, &profdata)?;
         let clang_branch = coverage.get_total_summary().count_covered_branches();
         let clang_total_branch: usize = coverage.get_total_summary().count_total_branches();

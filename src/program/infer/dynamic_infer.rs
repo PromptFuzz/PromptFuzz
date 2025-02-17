@@ -1,5 +1,8 @@
 /// Dynamically infer the constraints of AllocSize, LoopCount and so on influence the performance.
-use std::{ffi::{OsStr, OsString}, ptr::addr_of};
+use std::{
+    ffi::{OsStr, OsString},
+    ptr::addr_of,
+};
 
 use eyre::Context;
 use once_cell::sync::OnceCell;
@@ -56,7 +59,11 @@ impl<'a> Transformer<'a> {
 }
 
 impl Executor {
-    pub fn transform_check(&mut self, driver: &Path, corpora: &Path) -> Result<Option<ProgramError>> {
+    pub fn transform_check(
+        &mut self,
+        driver: &Path,
+        corpora: &Path,
+    ) -> Result<Option<ProgramError>> {
         self.deopt
             .prepare_transform_path_for_driver(driver, corpora)?;
 
@@ -70,7 +77,10 @@ impl Executor {
 
         let corpus: PathBuf = [check_dir, "corpus".into()].iter().collect();
         let max_total_time = "-max_total_time=60".to_string();
-        let mut extra_args = vec![corpus.as_os_str().to_os_string(), OsString::from(max_total_time)];
+        let mut extra_args = vec![
+            corpus.as_os_str().to_os_string(),
+            OsString::from(max_total_time),
+        ];
         let dict = self.deopt.get_library_build_dict_path().unwrap();
         if dict.exists() {
             let dict_arg = format!("-dict={}", dict.to_string_lossy());
@@ -131,15 +141,18 @@ pub fn infer_constraint_for_func(
         let max_value = get_integer_ty_max(arg_ty);
         let min_value = get_integer_ty_min(arg_ty);
         let magic_value = format!("({max_value} + {min_value}) / 0x2000");
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &max_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &max_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &min_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &min_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &magic_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &magic_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
@@ -167,7 +180,7 @@ fn infer_constraint_for_func_by_value(
     if let Some(err) = has_err {
         if matches!(err, ProgramError::Hang(_)) {
             let constraint = Constraint::LoopCount(arg_pos);
-            return Ok(Some(constraint))
+            return Ok(Some(constraint));
         }
         if let ProgramError::Execute(err_msg) = err {
             if err_msg.contains("out-of-memory")
@@ -178,9 +191,7 @@ fn infer_constraint_for_func_by_value(
                 let constraint = Constraint::AllocSize(arg_pos);
                 return Ok(Some(constraint));
             }
-            if err_msg.contains("SEGV")
-                || err_msg.contains("overflow")
-            {
+            if err_msg.contains("SEGV") || err_msg.contains("overflow") {
                 let constraint = Constraint::ArrayIndex((usize::MAX, arg_pos));
                 return Ok(Some(constraint));
             }

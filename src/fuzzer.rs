@@ -1,17 +1,20 @@
 use crate::{
     config::{self, get_config, get_library_name},
     deopt::Deopt,
-    execution::{logger::{init_gtl, ProgramLogger}, Executor},
+    execution::{
+        logger::{init_gtl, ProgramLogger},
+        Executor,
+    },
     feedback::{
         observer::Observer,
         schedule::{rand_choose_combination, Schedule},
     },
     minimize::minimize,
-    program::{
-        libfuzzer::LibFuzzer, rand::rand_comb_len, serde::Deserializer, Program
-    },
+    program::{libfuzzer::LibFuzzer, rand::rand_comb_len, serde::Deserializer, Program},
     request::{
-        self, openai::openai_billing::get_quota_cost, prompt::{load_prompt, Prompt}
+        self,
+        openai::openai_billing::get_quota_cost,
+        prompt::{load_prompt, Prompt},
     },
 };
 use eyre::Result;
@@ -174,7 +177,9 @@ impl Fuzzer {
     }
 
     pub fn is_converge(&self) -> bool {
-        if self.quiet_round >= get_config().fuzz_converge_round || get_quota_cost() >= get_config().query_budget{
+        if self.quiet_round >= get_config().fuzz_converge_round
+            || get_quota_cost() >= get_config().query_budget
+        {
             return true;
         }
         false
@@ -226,7 +231,7 @@ impl Fuzzer {
                 let new_comb = rand_choose_combination(config::DEFAULT_COMB_LEN);
                 prompt = Prompt::from_combination(new_comb);
             }
-            
+
             if has_new {
                 self.quiet_round = 0;
             } else if !is_stuck {

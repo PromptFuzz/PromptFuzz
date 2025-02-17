@@ -521,7 +521,12 @@ fn mask_driver_from_fuzzer(fuzzer_path: &Path, driver_id: u16) -> Result<()> {
 }
 
 // save the fuzzer and triger input that enables to reproduce this incident
-fn save_the_incident(fuzzer_dir: &Path, incident_dir: &Path, artifact: &[u8], err_msg: Option<String>) -> Result<()> {
+fn save_the_incident(
+    fuzzer_dir: &Path,
+    incident_dir: &Path,
+    artifact: &[u8],
+    err_msg: Option<String>,
+) -> Result<()> {
     if incident_dir.exists() {
         return Ok(());
     }
@@ -537,7 +542,7 @@ fn save_the_incident(fuzzer_dir: &Path, incident_dir: &Path, artifact: &[u8], er
         std::fs::write(save_log, err_msg)?;
     } else {
         let fuzz_log = get_fuzzer_log(fuzzer_dir);
-        std::fs::copy(fuzz_log, save_log)?;    
+        std::fs::copy(fuzz_log, save_log)?;
     }
 
     let trigger_input: PathBuf = [incident_dir.to_path_buf(), "triger_input".into()]

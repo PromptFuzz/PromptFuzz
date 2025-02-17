@@ -9,16 +9,18 @@ use std::str::FromStr;
 use super::serde::Deserializer;
 
 impl InitListExpr {
-
     pub fn is_mutable_list(&self, node: &Node) -> bool {
         for child in &node.inner {
             let child = child.ignore_cast().ignore_parent();
-            if !matches!(&child.kind,  Clang::StringLiteral(_)
-            | Clang::CharacterLiteral(_)
-            | Clang::FloatingLiteral(_)
-            | Clang::IntegerLiteral(_)
-            | Clang::InitListExpr(_)
-            | Clang::UnaryOperator(_)) {
+            if !matches!(
+                &child.kind,
+                Clang::StringLiteral(_)
+                    | Clang::CharacterLiteral(_)
+                    | Clang::FloatingLiteral(_)
+                    | Clang::IntegerLiteral(_)
+                    | Clang::InitListExpr(_)
+                    | Clang::UnaryOperator(_)
+            ) {
                 return false;
             }
         }
@@ -73,7 +75,11 @@ macro_rules! impl_array_literal {
     ($name:ident, $literal_ty:ident) => {
         impl InitListExpr {
             /// get the literal array declared in InitListExpr, e.g., {'a', 'b', 'c'}
-            pub fn $name<T: FromStr + Default>(&self, node: &Node, len: Option<usize>) -> Result<Vec<T>>
+            pub fn $name<T: FromStr + Default>(
+                &self,
+                node: &Node,
+                len: Option<usize>,
+            ) -> Result<Vec<T>>
             where
                 <T as std::str::FromStr>::Err: std::fmt::Debug,
             {

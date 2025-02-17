@@ -24,7 +24,9 @@ pub fn minimize(deopt: &Deopt) -> Result<()> {
         let unique_branches = observer.has_unique_branch(&coverage);
         if unique_branches.is_empty() {
             if seed.exists() {
-                log::info!("Program Seed triggers no unique branch and has been removed: {program_path:?}");
+                log::info!(
+                    "Program Seed triggers no unique branch and has been removed: {program_path:?}"
+                );
                 std::fs::remove_file(seed)?;
             }
             continue;
@@ -36,7 +38,7 @@ pub fn minimize(deopt: &Deopt) -> Result<()> {
         let new_exp_branches = observer.has_new_branch(&coverage);
         observer.merge_new_branch(&new_exp_branches);
     }
-  
+
     log::info!("{}", observer.dump_global_states());
     Ok(())
 }

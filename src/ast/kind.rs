@@ -217,7 +217,7 @@ impl DeclRefExpr {
         let var_name = self.get_name_as_string();
         if let Some(var) = visitor.find_vardecl(&var_name) {
             if let Clang::VarDecl(vd) = &var.kind {
-                return Some(vd)
+                return Some(vd);
             }
         }
         None
@@ -363,8 +363,7 @@ pub struct IntegerLiteral {
 }
 
 impl IntegerLiteral {
-    pub fn get_value<T: std::str::FromStr + Default>(&self) -> eyre::Result<T>
-    {
+    pub fn get_value<T: std::str::FromStr + Default>(&self) -> eyre::Result<T> {
         let value: T = self.value.parse::<T>().unwrap_or_default();
         Ok(value)
     }
@@ -800,14 +799,13 @@ impl CXXNewExpr {
         if !self.is_array {
             return None;
         }
-        if node.inner.len() != 1{
+        if node.inner.len() != 1 {
             return None;
         }
         let inner = node.inner[0].ignore_parent().ignore_cast();
         Some(inner)
     }
 }
-
 
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct Type {
@@ -1172,7 +1170,6 @@ pub struct ElaboratedType {
     #[serde(rename = "ownedTagDecl")]
     pub owned_tag_decl: Option<Decl>,
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CXXStaticCastExpr {
