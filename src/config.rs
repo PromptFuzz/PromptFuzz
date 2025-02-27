@@ -1,18 +1,19 @@
 use std::ptr::{addr_of, addr_of_mut};
 
 use once_cell::sync::OnceCell;
-use strum::Display;
 
 pub const CONNECT_TIMEOUT: u64 = 1;
 
-// OpenAI codex configure options
-pub static OPENAI_MODEL: Option<String> = None;
+// LLM Service Interface configure options
+pub static OPENAI_MODEL_NAME: OnceCell<String> = OnceCell::new();
 
-pub static OPENAI_INPUT_PRICE: Option<f32> = None;
+pub static OPENAI_INPUT_PRICE: OnceCell<Option<f32>> = OnceCell::new();
 
-pub static OPENAI_OUTPUT_PRICE: Option<f32> = None;
+pub static OPENAI_OUTPUT_PRICE: OnceCell<Option<f32>> = OnceCell::new();
 
-pub static OPENAI_CONTEXT_LIMIT: Option<i32> = None;
+pub static OPENAI_CONTEXT_LIMIT: OnceCell<Option<u32>> = OnceCell::new();
+
+pub static OPENAI_PROXY_BASE: OnceCell<Option<String>> = OnceCell::new();
 
 // Incoder configure options
 
@@ -86,12 +87,51 @@ pub const COVERAGE_FLAGS: [&str; 10] = [
 
 pub const ASAN_OPTIONS: [&str; 2] = ["exitcode=168", "alloc_dealloc_mismatch=0"];
 
+pub fn get_openai_model_name() -> String {
+    OPENAI_MODEL_NAME.get().unwrap().to_string()
+}
+
+pub fn get_openai_input_price() -> &'static Option<f32> {
+    OPENAI_INPUT_PRICE.get().unwrap()
+}
+
+pub fn get_openai_output_price() -> &'static Option<f32> {
+    OPENAI_OUTPUT_PRICE.get().unwrap()
+}
+
+pub fn get_openai_context_limit() -> &'static Option<u32> {
+    OPENAI_CONTEXT_LIMIT.get().unwrap()
+}
+
+pub fn get_openai_proxy() -> &'static Option<String> {
+    OPENAI_PROXY_BASE.get().unwrap()
+}
+
+
 pub fn init_openai_env() {
-    OPENAI_MODEL =
-        Some(std::env::var("OPENAI_MODEL").unwrap_or_else(|| panic!("OPENAI_MODEL not set")));
-    OPENAI_INPUT_PRICE = std::env::var("OPENAI_INPUT_PRICE").unwrap_or(None);
-    OPENAI_OUTPUT_PRICE = std::env::var("OPENAI_OUTPUT_PRICE").unwrap_or(None);
-    OPENAI_CONTEXT_LIMIT = std::env::var("OPENAI_CONTEXT_LIMIT").unwrap_or(None);
+    let model = std::env::var("OPENAI_MODEL_NAME").unwrap_or_else(|_| panic!("OPENAI_MODEL not set"));
+
+    let input_price =  std::env::var("OPENAI_INPUT_PRICE")
+        .ok()
+        .and_then(|s| s.parse::<f32>().ok());
+
+    let output_price =  std::env::var("OPENAI_OUTPUT_PRICE")
+        .ok()
+        .and_then(|s| s.parse::<f32>().ok());
+
+    let context_limit =  std::env::var("OPENAI_CONTEXT_LIMIT")
+        .ok()
+        .and_then(|s| s.parse::<u32>().ok());
+
+    let proxy_base = std::env::var("OPENAI_PROXY_BASE")
+        .ok()
+        .and_then(|s| s.parse::<String>().ok());
+
+    OPENAI_MODEL_NAME.set(model).unwrap();
+    OPENAI_INPUT_PRICE.set(input_price).unwrap();
+    OPENAI_OUTPUT_PRICE.set(output_price).unwrap();
+    OPENAI_CONTEXT_LIMIT.set(context_limit).unwrap();
+    OPENAI_PROXY_BASE.set(proxy_base).unwrap();
 }
 
 pub fn get_config() -> &'static Config {
@@ -153,7 +193,7 @@ pub fn parse_config() -> eyre::Result<()> {
     Ok(())
 }
 
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 
 use crate::Deopt;
 /// Simple program to greet a person
@@ -200,8 +240,6 @@ impl Config {
     pub fn init_test(target: &str) {
         let config = Config {
             target: target.to_string(),
-            generative: LLMModel::ChatGPT,
-            infill: LLMModel::ChatGPT,
             n_sample: 10,
             temperature: 0.9,
             cores: 10,
@@ -304,14 +342,6 @@ pub const USER_GEN_TEMPLATE: &str = "Create a C++ language program step by step 
 7. Release all allocated resources before return.
 ";
 
-/// Template for codex-davinci-002 prompt. (10x expensive than ChatGPT)
-pub const CODEX_GEN_TEMPLATE: &str = "/* 
-Create a C language program by using {project} library APIs and following the instructions below:
-1. Order the following APIs in a correct sequence;
-2. write a main function calls the ordered APIs and each one should be called at least once: 
-    {combination};
-*/\n";
-
 pub fn get_sys_gen_template() -> &'static str {
     pub static TEMPLATE: OnceCell<String> = OnceCell::new();
     TEMPLATE.get_or_init(|| SYSTEM_GEN_TEMPLATE.to_string())
@@ -345,10 +375,4 @@ pub fn get_user_chat_template() -> String {
         }
     }
     template
-}
-
-pub fn get_complete_gen_tempate() -> &'static str {
-    let config = get_config();
-    pub static GTEMPLATE: OnceCell<String> = OnceCell::new();
-    GTEMPLATE.get_or_init(|| CODEX_GEN_TEMPLATE.replace("{project}", &config.target))
 }

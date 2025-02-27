@@ -35,13 +35,8 @@ impl Fuzzer {
         let deopt = Deopt::new(get_library_name())?;
         let executor = Executor::new(&deopt)?;
         let observer = Observer::new(&deopt);
-        let config = config::get_config();
-        let handler: Box<dyn request::Handler> = match config.generative {
-            config::LLMModel::Incoder => Box::<request::incoder::IncoderHanlder>::default(),
-            config::LLMModel::ChatGPT | config::LLMModel::Codex | config::LLMModel::GPT4 => {
-                Box::<request::openai::OpenAIHanler>::default()
-            }
-        };
+        let handler: Box<dyn request::Handler> = Box::<request::openai::OpenAIHanler>::default();
+
         init_gtl();
         let fuzzer = Self {
             deopt,
@@ -270,6 +265,5 @@ impl Fuzzer {
 impl Drop for Fuzzer {
     fn drop(&mut self) {
         log::info!("Config: {:#?}", get_config());
-        self.handler.stop().unwrap();
     }
 }

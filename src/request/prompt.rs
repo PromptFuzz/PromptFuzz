@@ -169,18 +169,6 @@ impl Prompt {
         }
     }
 
-    /// format to completion kind prompt. return with (Prefix, Option<Suffix>).
-    pub fn to_completion_prompt(&self) -> (String, Option<String>) {
-        match &self.kind {
-            PromptKind::Generate(combination) => (
-                config::get_complete_gen_tempate()
-                    .replace("{combination}", &combination_to_str(combination)),
-                None,
-            ),
-            PromptKind::Infill(prefix, suffix) => (prefix.clone(), Some(suffix.clone())),
-            PromptKind::Others => unreachable!("Codex prompt cannot be Others kind."),
-        }
-    }
 }
 
 /// get the message of the system role for generative tasks.

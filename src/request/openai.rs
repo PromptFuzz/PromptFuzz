@@ -1,7 +1,7 @@
 use std::{process::Child, time::Duration};
 
 use crate::{
-    config::{self, get_config, LLMModel},
+    config::{self, get_config, get_openai_proxy},
     is_critical_err,
     program::Program,
     FuzzerError,
@@ -40,25 +40,19 @@ impl Default for OpenAIHanler {
 
 impl Handler for OpenAIHanler {
     fn generate_by_str(&self, prefix: &str) -> eyre::Result<Vec<Program>> {
-        self.rt.block_on(generate_programs_by_prefix(prefix))
+        unimplemented!("deprecated since no usage")
     }
 
     fn generate(&self, prompt: &super::prompt::Prompt) -> eyre::Result<Vec<Program>> {
-        let config = config::get_config();
-        match config.generative {
-            config::LLMModel::Codex => Handler::generate(self, prompt),
-            config::LLMModel::ChatGPT | config::LLMModel::GPT4 => {
-                let start = std::time::Instant::now();
-                let chat_msgs = prompt.to_chatgpt_message();
-                let mut programs = self.rt.block_on(generate_programs_by_chat(chat_msgs))?;
-                for program in programs.iter_mut() {
-                    program.combination = prompt.get_combination()?;
-                }
-                log::debug!("LLM Generate time: {}s", start.elapsed().as_secs());
-                Ok(programs)
-            }
-            config::LLMModel::Incoder => unreachable!(),
+        let start = std::time::Instant::now();
+        let chat_msgs = prompt.to_chatgpt_message();
+        let mut programs = self.rt.block_on(generate_programs_by_chat(chat_msgs))?;
+        for program in programs.iter_mut() {
+            program.combination = prompt.get_combination()?;
         }
+        log::debug!("LLM Generate time: {}s", start.elapsed().as_secs());
+        Ok(programs)
+   
     }
 
     fn infill_by_str(&self, prefix: &str, suffix: &str) -> eyre::Result<Vec<String>> {
@@ -67,33 +61,14 @@ impl Handler for OpenAIHanler {
     }
 
     fn infill(&self, prompt: &super::prompt::Prompt) -> eyre::Result<Vec<String>> {
-        let config = config::get_config();
-        match config.infill {
-            config::LLMModel::Codex => Handler::infill(self, prompt),
-            config::LLMModel::ChatGPT | config::LLMModel::GPT4 => {
-                let chat_msgs = prompt.to_chatgpt_message();
-                if let PromptKind::Infill(_, suffix) = &prompt.kind {
-                    let stop = suffix[..10].to_string();
-                    self.rt
-                        .block_on(generate_infills_by_chat(chat_msgs, Some(stop)))
-                } else {
-                    self.rt.block_on(generate_infills_by_chat(chat_msgs, None))
-                }
-            }
-            config::LLMModel::Incoder => unreachable!(),
+        let chat_msgs = prompt.to_chatgpt_message();
+        if let PromptKind::Infill(_, suffix) = &prompt.kind {
+            let stop = suffix[..10].to_string();
+            self.rt
+                .block_on(generate_infills_by_chat(chat_msgs, Some(stop)))
+        } else {
+            self.rt.block_on(generate_infills_by_chat(chat_msgs, None))
         }
-    }
-
-    fn stop(&mut self) -> eyre::Result<()> {
-        //log_account_balance(&self.rt)?;
-        Ok(())
-    }
-}
-
-fn get_openai_proxy() -> Option<String> {
-    match std::env::var("OPENAI_PROXY_BASE") {
-        Ok(base) => Some(base),
-        Err(_) => None,
     }
 }
 
@@ -121,118 +96,12 @@ pub mod openai_billing {
     use std::path::PathBuf;
 
     use crate::{config::*, deopt::Deopt};
-    /// Get the accont billing banlance
-    use chrono::{Datelike, Duration, Utc};
-    use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-    use serde_json::Value;
-
     use super::*;
-
-    fn _log_account_balance(rt: &tokio::runtime::Runtime) -> Result<()> {
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .expect("Your OPENAI_API_KEY is unset, please set it first!");
-        let (total_amount, total_usage, remaining) =
-            rt.block_on(_check_account_billing(&api_key)).unwrap();
-        // Output total usage, total amount and remaining balance information
-        log::info!("OpenAI billing Total Amount: {:.4}", total_amount);
-        log::info!("OpenAI billing Used: {:.4}", total_usage);
-        log::info!("OpenAI billing Remaining: {:.4}", remaining);
-        Ok(())
-    }
 
     fn _get_openai_base() -> &'static str {
         "https://api.openai.com/v1"
     }
 
-    // This method has failed since 2023/07/24 OPENAI closed the API of accessing account balling via API KEY.
-    async fn _check_account_billing(
-        api_key: &str,
-    ) -> Result<(f64, f64, f64), Box<dyn std::error::Error>> {
-        // Calculate start and end date
-        let now = Utc::now();
-        let start_date = (now - Duration::days(90)).date_naive();
-        let end_date = (now + Duration::days(1)).date_naive();
-
-        // Set API request URLs and headers
-        let url_subscription = format!("{}/dashboard/billing/subscription", _get_openai_base()); // Check if subscribed
-        let url_usage = format!(
-            "{}/dashboard/billing/usage?start_date={}&end_date={}",
-            _get_openai_base(),
-            start_date,
-            end_date
-        ); // Check usage
-
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", api_key))?,
-        );
-
-        let client = reqwest::Client::new();
-
-        // Get API limits
-        let response = client
-            .get(url_subscription)
-            .headers(headers.clone())
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            log::error!("Your account has been blocked, please log in to OpenAI for assistance.");
-            return Ok((0.0, 0.0, 0.0));
-        }
-
-        let subscription_data: Value = response.json().await?;
-
-        // Check if expired
-        let timestamp_now = Utc::now().timestamp();
-        let timestamp_expire = subscription_data["access_until"].as_i64().unwrap_or(0);
-
-        if timestamp_now > timestamp_expire {
-            println!(
-                "Your account usage limit has expired, please log in to OpenAI for assistance."
-            );
-        }
-
-        let total_amount = subscription_data["hard_limit_usd"].as_f64().unwrap_or(0.0);
-        let is_subscribed = subscription_data["has_payment_method"]
-            .as_bool()
-            .unwrap_or(false);
-
-        // Get usage amount
-        let response = client
-            .get(&url_usage)
-            .headers(headers.clone())
-            .send()
-            .await?;
-        //println!("response: {response:#?}");
-        let usage_data: Value = response.json().await?;
-        let mut total_usage = usage_data["total_usage"].as_f64().unwrap_or(0.0) / 100.0;
-
-        // If the user's card is bound, the usage limit is refreshed monthly
-        if is_subscribed {
-            let day = now.day();
-            let start_date = (now - Duration::days((day - 1).into())).date_naive();
-            let url_usage = format!(
-                "{}/dashboard/billing/usage?start_date={}&end_date={}",
-                _get_openai_base(),
-                start_date,
-                end_date
-            ); // Check usage
-            let response = client
-                .get(&url_usage)
-                .headers(headers.clone())
-                .send()
-                .await?;
-            let usage_data: Value = response.json().await?;
-            total_usage = usage_data["total_usage"].as_f64().unwrap_or(0.0) / 100.0;
-        }
-
-        // Calculate remaining usage
-        let remaining = total_amount - total_usage;
-        Ok((total_amount, total_usage, remaining))
-    }
 
     static mut PROMPT_USAGE: u32 = 0;
     static mut COMPLETION_USAGE: u32 = 0;
@@ -286,7 +155,7 @@ pub mod openai_billing {
             unsafe {
                 COMPLETION_USAGE += complete_token;
             }
-            count_billing(&response.model, prompt_token, complete_token)?;
+            count_billing(prompt_token, complete_token)?;
             let content: String = [
                 get_prompt_token_usage().to_string(),
                 " ".into(),
@@ -300,16 +169,18 @@ pub mod openai_billing {
         Ok(())
     }
 
-    fn count_billing(model: &str, prompt_usage: u32, completion_usage: u32) -> Result<()> {
-        let (prompt_price, completion_price) = match model {
-            CHATGPT_MODEL => (CHATGPT_INPUTR_PRICE, CHATGPT_OUTPUT_PRICE),
-            CHATGPT_MODEL_LONG => (CHATGPT_LONG_INPUT_PRICE, CHATGPT_LONG_OUTPUT_PRICE),
-            GPT4_MODEL => (GPT4_INPUT_PRICE, GPT4_OUTPUT_PRICE),
-            _ => unimplemented!("Model {model} is not supported!"),
-        };
+    fn count_billing(prompt_usage: u32, completion_usage: u32) -> Result<()> {
+        let input_price = get_openai_input_price();
+        let output_price = get_openai_output_price();
+        if input_price.is_none() || output_price.is_none() {
+            return Ok(());
+        }
+
+        let input_price = input_price.unwrap();
+        let output_price = output_price.unwrap();
 
         let curr_fee =
-            (prompt_price * prompt_usage as f32) + (completion_price * completion_usage as f32);
+            (input_price * prompt_usage as f32) + (output_price * completion_usage as f32);
         let curr_fee = curr_fee / 1000_f32;
         unsafe {
             QUOTA_COST += curr_fee;
@@ -318,20 +189,6 @@ pub mod openai_billing {
         log::info!("Total OPENAI corpora cost: ${current_cost}");
         Ok(())
     }
-}
-
-/// Create an requst of code completion task via OpenAI interface client.
-fn create_complete_request(prompt: &str) -> Result<CreateCompletionRequest> {
-    let request = CreateCompletionRequestArgs::default()
-        .model(config::CODEX_MODEL)
-        .prompt(prompt)
-        .max_tokens(config::MAX_TOKENS)
-        .n(config::get_sample_num())
-        .temperature(config::get_config().temperature)
-        .stream(false)
-        .echo(true)
-        .build()?;
-    Ok(request)
 }
 
 async fn get_complete_response(
@@ -361,13 +218,7 @@ fn create_chat_request(
     let config = get_config();
     let tokens = count_request_token_len(&msgs);
     let mut binding = CreateChatCompletionRequestArgs::default();
-    let binding = if matches!(config.generative, LLMModel::GPT4) {
-        binding.model(config::GPT4_MODEL)
-    } else if tokens < config::CHATGPT_CONTEXT_LIMIT {
-        binding.model(config::CHATGPT_MODEL)
-    } else {
-        binding.model(config::CHATGPT_MODEL_LONG)
-    };
+    let binding = binding.model(config::get_openai_model_name());
 
     let mut request = binding
         .messages(msgs)
@@ -409,7 +260,7 @@ async fn get_chat_response(
 
 fn create_infill_request(prefix: &str, suffix: &str) -> Result<CreateCompletionRequest> {
     let request = CreateCompletionRequestArgs::default()
-        .model(config::CODEX_MODEL)
+        .model(config::get_openai_model_name())
         .prompt(prefix)
         .suffix(suffix)
         .max_tokens(config::MAX_TOKENS)
@@ -418,21 +269,6 @@ fn create_infill_request(prefix: &str, suffix: &str) -> Result<CreateCompletionR
         .stream(false)
         .build()?;
     Ok(request)
-}
-
-/// Generate `SAMPLE_N` programs by completing the prefix.
-pub async fn generate_programs_by_prefix(prefix: &str) -> Result<Vec<Program>> {
-    let request = create_complete_request(prefix)?;
-    let respond = get_complete_response(request).await?;
-    if let Some(usage) = &respond.usage {
-        log::trace!("Corpora usage: {usage:?}");
-    }
-    let mut programs: Vec<Program> = Vec::new();
-    for choice in respond.choices {
-        let program = Program::new(&choice.text);
-        programs.push(program);
-    }
-    Ok(programs)
 }
 
 /// Generate `SAMPLE_N` programs by chatting with instructions.
