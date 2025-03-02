@@ -177,11 +177,12 @@ impl<'a> Transformer<'a> {
         let re = Regex::new(r"^input_file(\.\w+)?$")?;
         let visitor = self.get_new_visitor()?;
         if let Some(file_name) = visitor.match_string_pattern(re) {
-            let ins_loc = if let Some(loc) = crate::ast::loc::get_fuzzer_shim_after_loc(&self.src_file)? {
-                loc
-            } else {
-                visitor.get_function_body_begin_loc()?
-            };
+            let ins_loc =
+                if let Some(loc) = crate::ast::loc::get_fuzzer_shim_after_loc(&self.src_file)? {
+                    loc
+                } else {
+                    visitor.get_function_body_begin_loc()?
+                };
             let init_stmt = format!("\n\tFILE *input_file_ptr = fopen(\"{file_name}\", \"wb\");\n\tif (input_file_ptr == NULL) {{return 0;}}\n\tfwrite({data}, sizeof(uint8_t), {size}, input_file_ptr);\n\tfclose(input_file_ptr);\n");
             self.seek_and_rewrite(ins_loc, 0, &init_stmt)?;
         }
@@ -1322,9 +1323,7 @@ fn collect_fuzzable_integer_args(
     visitor: &Visitor,
 ) -> Vec<FuzzVariant> {
     // get the positions of integer (scalar) type parameters of this API call.
-    let integeral_pos = get_func_gadget(call_name)
-        .unwrap()
-        .get_integer_params_pos();
+    let integeral_pos = get_func_gadget(call_name).unwrap().get_integer_params_pos();
     // filter out the positions inferred with constraints.
     let integeral_pos: Vec<&usize> = integeral_pos
         .iter()
@@ -1622,7 +1621,7 @@ mod tests {
     #[test]
     fn test_transform_without_constraint() -> Result<()> {
         crate::config::Config::init_test("libjpeg-turbo");
-        let deopt = Deopt::new("libjpeg-turbo")?;
+        let deopt = Deopt::new("libjpeg-turbo".to_string())?;
         let test_file: PathBuf = [
             Deopt::get_crate_dir()?,
             "testsuites".into(),
@@ -1643,7 +1642,7 @@ mod tests {
     #[test]
     fn test_transform_with_constraint() -> Result<()> {
         crate::config::Config::init_test("zlib");
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         let test_file: PathBuf = [
             Deopt::get_crate_dir()?,
             "testsuites".into(),

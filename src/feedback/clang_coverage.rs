@@ -748,7 +748,7 @@ mod tests {
     #[test]
     fn test_parse_coverage_summary() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let profdata: PathBuf = [
             crate::Deopt::get_crate_dir()?,
             "testsuites",
@@ -770,7 +770,7 @@ mod tests {
     #[test]
     fn test_parse_code_coverage() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let profdata: PathBuf = [
             crate::Deopt::get_crate_dir()?,
             "testsuites",

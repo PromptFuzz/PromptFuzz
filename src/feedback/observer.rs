@@ -4,13 +4,10 @@ use std::{
 };
 
 use crate::{
-    analysis::{adg::ADG, cfg::CFGBuilder},
-    config::get_config_mut,
-    program::{
+    analysis::{adg::ADG, cfg::CFGBuilder}, config::CONFIG_INSTANCE, deopt::utils::read_sort_dir, program::{
         gadget::{get_func_gadgets, FuncGadget},
         Program,
-    },
-    Deopt, deopt::utils::read_sort_dir,
+    }, Deopt
 };
 use eyre::Result;
 
@@ -95,7 +92,7 @@ impl Observer {
 
     // Unique branch is the branch that have not been triggered before.
     pub fn has_unique_branch(&mut self, coverage: &CodeCoverage) -> HashMap<String, Vec<Branch>> {
-        let config = get_config_mut();
+        let mut config = CONFIG_INSTANCE.get().unwrap().write().unwrap();
         config.exponent_branch = false;
         let unique_branche_states = self.branches.has_new(coverage);
         config.exponent_branch = true;
@@ -272,7 +269,7 @@ mod tests {
     #[test]
     fn test_observe_api_coverage() -> Result<()> {
         crate::config::Config::init_test("zlib");
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         let seed_id = 974;
         let coverage = deopt.get_seed_coverage(seed_id)?;
         let mut observer = Observer::from_coverage(&coverage, &deopt);
@@ -283,7 +280,7 @@ mod tests {
     #[test]
     fn test_observe_branch_coverage() -> Result<()> {
         crate::config::Config::init_test("libvpx");
-        let mut deopt = Deopt::new("libvpx")?;
+        let mut deopt = Deopt::new("libvpx".to_string())?;
         //let executor = Executor::new(&deopt)?;
         //let programs = deopt.load_programs_from_seeds(true)?;
         //let _ = executor.check_programs_are_correct(&programs, &deopt)?;
@@ -309,10 +306,17 @@ mod tests {
     #[test]
     fn test_branch_coverage() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let executor = Executor::new(&deopt)?;
 
-        let profdata: PathBuf = [Deopt::get_crate_dir()?, "testsuites", "corpora", "defualt.profdata"].iter().collect();
+        let profdata: PathBuf = [
+            Deopt::get_crate_dir()?,
+            "testsuites",
+            "corpora",
+            "defualt.profdata",
+        ]
+        .iter()
+        .collect();
         let coverage = Executor::obtain_cov_from_profdata(&executor, &profdata)?;
         let clang_branch = coverage.get_total_summary().count_covered_branches();
         let clang_total_branch: usize = coverage.get_total_summary().count_total_branches();

@@ -240,9 +240,9 @@ pub fn get_fuzzer_shim_after_loc(src_file: &Path) -> Result<Option<usize>> {
     let mut buffer = String::new();
     f.read_to_string(&mut buffer)?;
     let shim_end = "//fuzzer shim end}";
-    if let Some(loc) =  buffer.find(shim_end) {
+    if let Some(loc) = buffer.find(shim_end) {
         let loc = loc + shim_end.len();
-        return Ok(Some(loc))
+        return Ok(Some(loc));
     }
     Ok(None)
 }

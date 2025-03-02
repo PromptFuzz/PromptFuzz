@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn test_coverage_sanitize() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let executor = Executor::new(&deopt)?;
 
         // this should pass the sanitization.
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn test_sanitization_for_a_program() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let program_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "new_test.cc"]
                 .iter()
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn test_corpus_evoluation() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let work_path = deopt.get_work_seed_by_id(61)?;
         let executor = Executor::new(&deopt)?;
         let res = executor.evolve_corpus(&work_path)?;

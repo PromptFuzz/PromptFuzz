@@ -207,7 +207,7 @@ fn test_ast_dump_filter() -> Result<()> {
         [crate::Deopt::get_crate_dir()?, "testsuites", "test_dfa.cc"]
             .iter()
             .collect();
-    let deopt = Deopt::new("cJSON")?;
+    let deopt = Deopt::new("cJSON".to_string())?;
     let func = "main";
     let ast_filter = format!("-ast-dump-filter={func}");
     let include_path = "-I".to_owned() + deopt.get_library_build_header_path()?.to_str().unwrap();

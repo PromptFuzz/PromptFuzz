@@ -4,9 +4,9 @@ use crate::{
     deopt::Deopt,
     mutation::mutate_prompt,
     program::{
-        gadget::{get_func_gadgets, FuncGadget, get_func_gadget},
+        gadget::{get_func_gadget, get_func_gadgets, FuncGadget},
         get_exec_counter, get_exec_counter_mut, load_exec_counter,
-        rand::{prob_coin, weighted_choose, rand_comb_len},
+        rand::{prob_coin, rand_comb_len, weighted_choose},
     },
     request::prompt::{get_prompt_counter, get_prompt_counter_mut, load_prompt_counter, Prompt},
 };
@@ -59,7 +59,10 @@ fn should_deterministic_mutate(deopt: &Deopt) -> bool {
     let prob = seed_num as f32 / 100.0_f32;
     let prob = prob.min(0.8_f32);
     let coin = prob_coin(prob);
-    log::info!("Number of current unique seeds: {}, prob: {prob}, coin: {coin}", deopt.seed_queue.len());
+    log::info!(
+        "Number of current unique seeds: {}, prob: {prob}, coin: {coin}",
+        deopt.seed_queue.len()
+    );
     coin
 }
 
@@ -119,11 +122,7 @@ impl Schedule {
         );
     }
 
-    pub fn update_prompt(
-        &self,
-        prompt: &mut Prompt,
-        deopt: &mut Deopt,
-    ) -> eyre::Result<()> {
+    pub fn update_prompt(&self, prompt: &mut Prompt, deopt: &mut Deopt) -> eyre::Result<()> {
         if should_deterministic_mutate(deopt) {
             mutate_prompt(prompt, self, deopt);
         } else {
@@ -148,7 +147,7 @@ impl Schedule {
         if succ == 0 && total < 30 {
             return false;
         }
-        if succ * 30 < total  {
+        if succ * 30 < total {
             return true;
         }
         false
@@ -165,7 +164,8 @@ impl Schedule {
                 continue;
             }
             comb.push(api);
-            let gadget = get_func_gadget(api).unwrap_or_else(|| panic!("cannot found api {api} in gadgets"));
+            let gadget =
+                get_func_gadget(api).unwrap_or_else(|| panic!("cannot found api {api} in gadgets"));
             gadgets.push(gadget);
         }
         gadgets

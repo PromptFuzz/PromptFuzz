@@ -281,7 +281,7 @@ pub fn get_include_sys_headers_str() -> String {
 
 #[test]
 fn test_library_headers() {
-    let deopt = Deopt::new("c-ares").unwrap();
+    let deopt = Deopt::new("c-ares".to_string()).unwrap();
     let headers = get_include_lib_headers(&deopt).unwrap();
     let sys_headers = get_include_sys_headers(&deopt);
     assert_eq!(
@@ -294,7 +294,7 @@ fn test_library_headers() {
 #[test]
 fn test_library_header() {
     crate::config::Config::init_test("libtiff");
-    let deopt = Deopt::new("libtiff").unwrap();
+    let deopt = Deopt::new("libtiff".to_string()).unwrap();
     let headers = get_include_lib_headers(&deopt).unwrap();
     println!("{headers:?}");
 }

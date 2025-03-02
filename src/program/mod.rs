@@ -13,13 +13,14 @@ use std::path::{Path, PathBuf};
 use self::gadget::FuncGadget;
 use self::serde::{Deserialize, Deserializer};
 use crate::ast::Visitor;
+use crate::config::get_library_name;
 use crate::deopt::Deopt;
 use crate::execution::Executor;
 use crate::feedback::branches::Branch;
 use eyre::Context;
+use eyre::Result;
 use once_cell::sync::OnceCell;
 use regex::Regex;
-use eyre::Result;
 
 static mut EXEC_COUNTER: OnceCell<HashMap<String, u32>> = OnceCell::new();
 
@@ -38,8 +39,7 @@ pub fn get_exec_counter_mut() -> &'static mut HashMap<String, u32> {
 }
 
 fn save_exec_counter(counter: &HashMap<String, u32>) {
-    let config = crate::config::get_config();
-    let deopt = Deopt::new(&config.target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     let counter_path: PathBuf = [
         deopt.get_library_misc_dir().unwrap(),
         "exec_counter.json".into(),
@@ -76,11 +76,7 @@ pub struct Quality {
 }
 
 impl Quality {
-    pub fn new(
-        density: usize,
-        library_calls: Vec<String>,
-        critical_calls: Vec<String>
-    ) -> Self {
+    pub fn new(density: usize, library_calls: Vec<String>, critical_calls: Vec<String>) -> Self {
         Self {
             density,
             unique_branches: HashMap::new(),
@@ -166,10 +162,7 @@ impl Program {
     ///   - Diveristy: number of API calls.
     ///   - Density: number of correlated API calls.
     ///   - Coverage: covered APIs in prompt.
-    pub fn compute_quality(
-        &self,
-        deopt: &Deopt,
-    ) -> eyre::Result<Quality> {
+    pub fn compute_quality(&self, deopt: &Deopt) -> eyre::Result<Quality> {
         let seed_path = deopt.get_succ_seed_path_by_id(self.id)?;
         let ast = Executor::extract_ast(&seed_path, vec![], deopt)?;
         let visitor = Visitor::new(ast.clone());
@@ -203,7 +196,11 @@ impl Program {
         Ok(quality)
     }
 
-    pub fn update_quality(&mut self, unique_branches:  HashMap<String, Vec<Branch>>, deopt: &Deopt) -> Result<()> {
+    pub fn update_quality(
+        &mut self,
+        unique_branches: HashMap<String, Vec<Branch>>,
+        deopt: &Deopt,
+    ) -> Result<()> {
         let mut quality = self.compute_quality(deopt)?;
         quality.set_unique_branches(unique_branches);
         self.set_quality(quality.clone());
@@ -211,10 +208,7 @@ impl Program {
     }
 
     // Update the unique branches according the new coverage
-    pub fn update_unique_branches(
-        &mut self,
-        coming_branches: &HashMap<String, Vec<Branch>>,
-    ) {
+    pub fn update_unique_branches(&mut self, coming_branches: &HashMap<String, Vec<Branch>>) {
         for unique_branch in self.quality.unique_branches.iter_mut() {
             let (func, branches) = unique_branch;
             if let Some(coming_func_branches) = coming_branches.get(func) {

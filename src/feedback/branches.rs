@@ -22,8 +22,6 @@ pub fn parse_branch(clang_branch: &CovBranch) -> (Branch, Branch) {
     (true_branch, false_branch)
 }
 
-
-
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct BranchState {
     branch: Branch,
@@ -171,7 +169,7 @@ impl GlobalBranches {
                 branches.push(false_branch.clear_bucket());
             }
             let func_branches = FuncBranches::new(branches);
-            if self.branches.contains_key(func_name){
+            if self.branches.contains_key(func_name) {
                 continue;
             }
             self.branches.insert(func_name.to_string(), func_branches);
@@ -191,7 +189,10 @@ impl GlobalBranches {
             }
             visited.insert(func_name);
             let func_states = llvm_branches_to_internal(&func.branches);
-            let global_states = self.branches.get(func_name).unwrap_or_else(||panic!("cannot found {func_name} in branch"));
+            let global_states = self
+                .branches
+                .get(func_name)
+                .unwrap_or_else(|| panic!("cannot found {func_name} in branch"));
             let has_new = Self::check_branch_states(global_states, &func_states);
             if !has_new.is_empty() {
                 new_branches.insert(func_name.to_string(), has_new);
@@ -259,7 +260,7 @@ impl GlobalBranches {
         for func_state in self.branches.values() {
             for branch_state in func_state.get_branches() {
                 if branch_state.bucket != BUCKET_MASK {
-                    covered.push(branch_state.branch);                    
+                    covered.push(branch_state.branch);
                 }
             }
         }
@@ -354,14 +355,14 @@ fn llvm_branches_to_internal(llvm_branches: &Vec<CovBranch>) -> Vec<BranchState>
 #[cfg(test)]
 mod tests {
 
-    use crate::config::get_config_mut;
+    use crate::config::CONFIG_INSTANCE;
 
     use super::*;
 
     #[test]
     fn test_absolute_new_branch() {
         crate::config::Config::init_test("cJSON");
-        let config = get_config_mut();
+        let mut config = CONFIG_INSTANCE.get().unwrap().write().unwrap();
         config.exponent_branch = false;
 
         let branch: Branch = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -386,7 +387,7 @@ mod tests {
     #[test]
     fn test_exponent_new_branch() {
         crate::config::Config::init_test("cJSON");
-        let config = get_config_mut();
+        let mut config = CONFIG_INSTANCE.get().unwrap().write().unwrap();
         config.exponent_branch = true;
 
         let branch: Branch = [0, 0, 0, 0, 0, 0, 0, 0];

@@ -16,9 +16,6 @@ use eyre::Result;
 use flexi_logger::{opt_format, FileSpec, Naming};
 use once_cell::sync::OnceCell;
 
-#[macro_use]
-extern crate derive_builder;
-
 pub fn init_logger() -> Result<()> {
     let deopt = Deopt::new(get_library_name())?;
     let log_file = FileSpec::default()

@@ -3,8 +3,9 @@ use regex::Regex;
 
 use crate::{
     ast::{loc::is_macro_stmt, Clang, CommomHelper, Node, Visitor},
+    config::get_library_name,
     execution::Executor,
-    program::gadget::get_func_gadget, config::get_config,
+    program::gadget::get_func_gadget,
 };
 
 use self::utils::is_null_ptr;
@@ -298,7 +299,9 @@ fn refine_constraints_for_integer_arg(constraints: Vec<Constraint>) -> Vec<Const
         }
         for constraint in &weak_arr_len {
             if let Constraint::WeakArrayLen((array_pos, integer_pos)) = constraint {
-                if *array_pos == integer_pos + 1 || (*integer_pos > 0 && *array_pos == integer_pos - 1) {
+                if *array_pos == integer_pos + 1
+                    || (*integer_pos > 0 && *array_pos == integer_pos - 1)
+                {
                     return vec![constraint.clone()];
                 }
             }
@@ -415,7 +418,7 @@ fn select_max_array_constraint(constraints: Vec<Constraint>) -> Vec<Constraint> 
 /// LLM is possible to assign a string argument with "input_file" name, so check whether this constraint is well inferred
 fn refine_file_name_constraint(func: &str, constraints: Vec<Constraint>) -> Vec<Constraint> {
     let mut retained = Vec::new();
-    let deopt = Deopt::new(&get_config().target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     for constraint in constraints {
         if let Constraint::FileName(arg_pos) = constraint {
             if !check_func_arg_is_file_name(func, arg_pos, &deopt).unwrap() {
@@ -447,9 +450,11 @@ fn check_func_arg_is_file_name(func: &str, arg_pos: usize, deopt: &Deopt) -> Res
             total_cnt += 1;
         }
     }
-    log::debug!("FileName, func: {func}, arg_pos: {arg_pos}, total_cnt: {total_cnt}, true_cnt: {true_cnt}");
+    log::debug!(
+        "FileName, func: {func}, arg_pos: {arg_pos}, total_cnt: {total_cnt}, true_cnt: {true_cnt}"
+    );
     if true_cnt == total_cnt || (true_cnt as f32 / total_cnt as f32) >= 0.8 {
-        return Ok(true)
+        return Ok(true);
     }
     Ok(false)
 }
@@ -763,11 +768,10 @@ fn strip_prefix(node: &Node) -> &Node {
     node.ignore_parent().ignore_cast().ignore_prefix()
 }
 
-
 #[test]
 fn test_static_infer() -> Result<()> {
     crate::config::Config::init_test("c-ares");
-    let deopt = Deopt::new("c-ares")?;
+    let deopt = Deopt::new("c-ares".to_string())?;
     let mut constraints = APIConstraints::new();
 
     let programs = crate::deopt::utils::read_sort_dir(&deopt.get_library_succ_seed_dir()?)?;

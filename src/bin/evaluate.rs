@@ -2,11 +2,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use eyre::Result;
-use prompt_fuzz::{
-    deopt::{Deopt, self},
-    program::Program, execution::Executor,
-};
 use plotters::prelude::*;
+use prompt_fuzz::{
+    deopt::{self, Deopt}, execution::Executor, program::Program
+};
 
 fn get_bench_dir() -> Result<PathBuf> {
     let crate_dir = crate::Deopt::get_crate_dir()?;
@@ -23,7 +22,7 @@ fn get_acc_bench_dir() -> Result<PathBuf> {
 
 fn get_library_acc_bench_dir(deopt: &Deopt) -> Result<PathBuf> {
     let mut acc_bench = get_acc_bench_dir()?;
-    acc_bench.push(deopt.project_name);
+    acc_bench.push(&deopt.project_name);
     deopt::utils::create_dir_if_nonexist(&acc_bench)?;
     Ok(acc_bench)
 }
@@ -70,11 +69,11 @@ pub struct Config {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Coverage { 
+    Coverage {
         kind: ACCKind,
-        #[arg(short, long, default_value="false")]
-        rand_bench: bool
-     },
+        #[arg(short, long, default_value = "false")]
+        rand_bench: bool,
+    },
 }
 
 #[derive(Debug, ValueEnum, Clone, Copy, PartialEq, PartialOrd)]
@@ -82,19 +81,19 @@ enum ACCKind {
     /// collect coverage for the entire library
     Collect,
     Plot,
-    Compare
+    Compare,
 }
 
 struct BranchCounter<'a> {
     deopt: &'a Deopt,
-    cover_files: Vec<PathBuf>
+    cover_files: Vec<PathBuf>,
 }
 
 impl<'a> BranchCounter<'a> {
     fn new(deopt: &'a Deopt) -> Self {
         Self {
             deopt,
-            cover_files: Vec::new()
+            cover_files: Vec::new(),
         }
     }
 
@@ -126,7 +125,7 @@ impl<'a> BranchCounter<'a> {
             eyre::bail!("seed accumulated coverage file not found");
         }
         let executor = Executor::new(self.deopt)?;
-        let code_coverage =  executor.obtain_cov_from_profdata(&acc_file)?;
+        let code_coverage = executor.obtain_cov_from_profdata(&acc_file)?;
         let branch_count = code_coverage.get_covered_branch().len();
         Ok(branch_count)
     }
@@ -161,7 +160,7 @@ fn collect_accumulation_coverage(deopt: &Deopt, is_rand_bench: bool) -> Result<(
     } else {
         get_acc_coverage_bench_file(deopt)?
     };
-    
+
     let dump_str = serde_json::to_string(&acc_coverage)?;
     std::fs::write(save_file, &dump_str)?;
     std::fs::write(&bench_file, dump_str)?;
@@ -214,7 +213,10 @@ fn plot_acc_coverage_comparison(deopt: &Deopt) -> Result<()> {
     let rand_coverage: Vec<usize> = serde_json::from_str(&raw_str)?;
 
     let x_limit = usize::max(bench_coverage.len(), rand_coverage.len());
-    let y_limit = usize::max(*bench_coverage.iter().max().unwrap(), *rand_coverage.iter().max().unwrap());
+    let y_limit = usize::max(
+        *bench_coverage.iter().max().unwrap(),
+        *rand_coverage.iter().max().unwrap(),
+    );
     let x_limit = (x_limit as f32 * 1.1_f32) as usize;
     let y_limit = (y_limit as f32 * 1.1_f32) as usize;
 
@@ -248,7 +250,7 @@ fn plot_acc_coverage_comparison(deopt: &Deopt) -> Result<()> {
     Ok(())
 }
 
-fn coverage(project: &'static str, kind: &ACCKind, is_rand_bench: bool) -> Result<()> {
+fn coverage(project: String, kind: &ACCKind, is_rand_bench: bool) -> Result<()> {
     let deopt = Deopt::new(project)?;
     match kind {
         ACCKind::Collect => collect_accumulation_coverage(&deopt, is_rand_bench)?,
@@ -264,10 +266,8 @@ fn coverage(project: &'static str, kind: &ACCKind, is_rand_bench: bool) -> Resul
 fn main() -> Result<()> {
     let config = Config::parse();
     prompt_fuzz::config::Config::init_test(&config.project);
-    let project: &'static str = Box::leak(config.project.clone().into_boxed_str());
-
     match &config.command {
-        Commands::Coverage { kind, rand_bench } => coverage(project, kind, *rand_bench)?,
+        Commands::Coverage { kind, rand_bench } => coverage(config.project.clone(), kind, *rand_bench)?,
     }
     Ok(())
 }

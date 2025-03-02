@@ -880,7 +880,7 @@ pub mod tests {
                 .iter()
                 .collect();
         crate::config::Config::init_test("c-ares");
-        let deopt = Deopt::new("c-ares")?;
+        let deopt = Deopt::new("c-ares".to_string())?;
         let ast = crate::execution::Executor::extract_ast(&c_test_path, vec![], &deopt)?;
         let cfg = crate::analysis::cfg::CFGBuilder::build_cfg(ast)?;
         cfg.dump_to_file(&c_test_path, true)?;
@@ -894,7 +894,7 @@ pub mod tests {
 
     #[test]
     fn test_build_sparse_dense_and_coalesce_adg() -> Result<()> {
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "test_adg.c"]
                 .iter()

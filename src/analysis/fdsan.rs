@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_detect_use_after_close() -> Result<()> {
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf = [
             crate::Deopt::get_crate_dir()?,
             "testsuites",
@@ -708,7 +708,7 @@ mod tests {
 
     #[test]
     fn test_detect_double_close() -> Result<()> {
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf = [
             crate::Deopt::get_crate_dir()?,
             "testsuites",
@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn test_detect_leak() -> Result<()> {
         crate::config::Config::init_test("zlib");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf = [
             crate::Deopt::get_crate_dir()?,
             "testsuites",
@@ -742,7 +742,7 @@ mod tests {
     #[test]
     fn test_fd_sanitize() -> Result<()> {
         crate::config::Config::init_test("zlib");
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         let test_dir: PathBuf = [deopt.get_library_output_dir()?, "seeds_bak".into()]
             .iter()
             .collect();
@@ -761,7 +761,7 @@ mod tests {
     #[test]
     fn test_file_constraint() -> Result<()> {
         crate::config::Config::init_test("libtiff");
-        let deopt = Deopt::new("libtiff")?;
+        let deopt = Deopt::new("libtiff".to_string())?;
         let seed_id = 1857;
         let work_seed = deopt.get_work_seed_by_id(seed_id)?;
 

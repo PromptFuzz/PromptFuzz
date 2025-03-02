@@ -3,17 +3,18 @@ use std::usize;
 use rand::Rng;
 
 use crate::{
+    config::DEFAULT_COMB_LEN,
     deopt::Deopt,
     feedback::schedule::{rand_choose_combination, Schedule},
     program::{
         gadget::get_func_gadget,
         rand::{get_global_rng, random_select},
     },
-    request::prompt::Prompt, config::DEFAULT_COMB_LEN,
+    request::prompt::Prompt,
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum MutationOperator{
+pub enum MutationOperator {
     // Add an API in prompt
     Add,
     // Replace an API in prompt
@@ -63,22 +64,25 @@ fn prompt_energy_deletion(prompt: Vec<String>, schedule: &Schedule) -> Vec<Strin
     while deleted < should_delete {
         let delete_idx = schedule.choose_low_energy_api(&combination);
         let deleted_api = combination.remove(delete_idx);
-        log::info!(
-            "Delete low energy {} from prompt.",
-            deleted_api
-        );
+        log::info!("Delete low energy {} from prompt.", deleted_api);
         deleted += 1;
     }
     combination
 }
 
 /// Replace an uncovered API with a high energy API
-fn prompt_replacement(prompt: Vec<String>, schedule: &Schedule) -> Vec<String>{
+fn prompt_replacement(prompt: Vec<String>, schedule: &Schedule) -> Vec<String> {
     let prompt = prompt_energy_deletion(prompt, schedule);
     prompt_insertion(prompt, schedule)
 }
 
-fn crossover(prompt1: Vec<String>, prompt2: Vec<String>, index1: usize, index2: usize, len: usize) -> Vec<String> {
+fn crossover(
+    prompt1: Vec<String>,
+    prompt2: Vec<String>,
+    index1: usize,
+    index2: usize,
+    len: usize,
+) -> Vec<String> {
     let mut combination = Vec::new();
     let first_part = &prompt1[0..index1];
     combination.extend_from_slice(first_part);
@@ -90,7 +94,7 @@ fn crossover(prompt1: Vec<String>, prompt2: Vec<String>, index1: usize, index2: 
 }
 
 /// Retain the uncovered APIs, and replace with covered APIs with those chosed from High Quality Prompt.
-fn prompt_crossover(prompt1: Vec<String>, prompt2: Vec<String>) -> Vec<String>{
+fn prompt_crossover(prompt1: Vec<String>, prompt2: Vec<String>) -> Vec<String> {
     log::info!("Crossover {prompt1:#?} with {prompt2:#?}");
     if prompt1.len() >= prompt2.len() {
         // crossover with lentgh of 3
@@ -114,12 +118,12 @@ fn prompt_crossover(prompt1: Vec<String>, prompt2: Vec<String>) -> Vec<String>{
     }
 }
 
-pub fn mutate_prompt(
-    prompt: &mut Prompt,
-    schedule: &Schedule,
-    deopt: &mut Deopt,
-) {
-    let mutators = vec![MutationOperator::Add, MutationOperator::Replace, MutationOperator::CrossOver];
+pub fn mutate_prompt(prompt: &mut Prompt, schedule: &Schedule, deopt: &mut Deopt) {
+    let mutators = vec![
+        MutationOperator::Add,
+        MutationOperator::Replace,
+        MutationOperator::CrossOver,
+    ];
     let mutator = random_select(&mutators);
     let seed = deopt.select_seed_from_queue().clone();
     let prompt_comb = seed.convert_to_prompt();
@@ -143,19 +147,25 @@ pub fn mutate_prompt(
         MutationOperator::CrossOver => {
             let seed2 = deopt.select_seed_exclude(&seed);
             let prompt_comb2 = seed2.convert_to_prompt();
-            log::info!("[Mutation CrossOver] select seed1: {}, seed2: {}", seed.id, seed2.id);
+            log::info!(
+                "[Mutation CrossOver] select seed1: {}, seed2: {}",
+                seed.id,
+                seed2.id
+            );
             prompt_crossover(prompt_comb, prompt_comb2)
-        },
+        }
     };
-    let combination = combination.iter().map(|api| get_func_gadget(api).unwrap()).collect();
+    let combination = combination
+        .iter()
+        .map(|api| get_func_gadget(api).unwrap())
+        .collect();
     prompt.set_combination(combination);
 }
-
 
 #[test]
 fn test_seed_to_prompt() -> eyre::Result<()> {
     crate::config::Config::init_test("cJSON");
-    let mut deopt = Deopt::new("cJSON")?;
+    let mut deopt = Deopt::new("cJSON".to_string())?;
     deopt.load_programs_from_seeds()?;
     let seed_id = 24;
     let seed = deopt.get_seed_from_queue(seed_id);

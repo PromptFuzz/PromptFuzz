@@ -521,7 +521,12 @@ fn mask_driver_from_fuzzer(fuzzer_path: &Path, driver_id: u16) -> Result<()> {
 }
 
 // save the fuzzer and triger input that enables to reproduce this incident
-fn save_the_incident(fuzzer_dir: &Path, incident_dir: &Path, artifact: &[u8], err_msg: Option<String>) -> Result<()> {
+fn save_the_incident(
+    fuzzer_dir: &Path,
+    incident_dir: &Path,
+    artifact: &[u8],
+    err_msg: Option<String>,
+) -> Result<()> {
     if incident_dir.exists() {
         return Ok(());
     }
@@ -537,7 +542,7 @@ fn save_the_incident(fuzzer_dir: &Path, incident_dir: &Path, artifact: &[u8], er
         std::fs::write(save_log, err_msg)?;
     } else {
         let fuzz_log = get_fuzzer_log(fuzzer_dir);
-        std::fs::copy(fuzz_log, save_log)?;    
+        std::fs::copy(fuzz_log, save_log)?;
     }
 
     let trigger_input: PathBuf = [incident_dir.to_path_buf(), "triger_input".into()]
@@ -897,7 +902,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_transform_lib_fuzzer() -> Result<()> {
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         Config::init_test("zlib");
         let test_dir: PathBuf = [deopt.get_library_output_dir()?, "seeds".into()]
             .iter()
@@ -914,7 +919,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_crash() -> Result<()> {
-        let deopt = Deopt::new("libpcap")?;
+        let deopt = Deopt::new("libpcap".to_string())?;
         Config::init_test("libpcap");
         let fuzzer_dir = deopt.get_library_fuzzer_dir(false)?;
         sanitize_crash::sanitize_crash(&fuzzer_dir, &deopt)?;

@@ -834,7 +834,7 @@ mod tests {
     #[test]
     fn test_concurrent_checking() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let executor = Executor::new(&deopt)?;
 
         let test_dir: PathBuf = [deopt.get_library_output_dir()?, "tests".into()]

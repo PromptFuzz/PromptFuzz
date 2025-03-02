@@ -1,9 +1,11 @@
-use std::{path::PathBuf, time::{self, Instant}};
+use std::{
+    path::PathBuf,
+    time::{self, Instant},
+};
 
 use eyre::Result;
 use once_cell::sync::OnceCell;
 use regex::{Captures, Regex};
-
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum ProgramError {
@@ -60,7 +62,8 @@ impl AsanError {
             Self::Segv
         } else if msg.contains("attempting free on address which was not malloc") {
             Self::ErrFree
-        } else if msg.contains("is_file_name_closed(char const*)") || msg.contains("fd_err_abort()") {
+        } else if msg.contains("is_file_name_closed(char const*)") || msg.contains("fd_err_abort()")
+        {
             Self::FDSan
         } else if msg.contains("UndefinedBehaviorSanitizer") {
             Self::Undefined
@@ -306,15 +309,19 @@ impl ProgramLogger {
 
 pub struct TimeUsage {
     start: Instant,
-    dir: PathBuf
+    dir: PathBuf,
 }
 
 impl TimeUsage {
     pub fn new(dir: PathBuf) -> Self {
         let mut dir = dir.clone();
         dir.push("time_usage");
-        crate::deopt::utils::create_dir_if_nonexist(&dir).unwrap_or_else(|_| panic!("create dir failed! {dir:?}"));
-        Self { start: time::Instant::now(), dir }
+        crate::deopt::utils::create_dir_if_nonexist(&dir)
+            .unwrap_or_else(|_| panic!("create dir failed! {dir:?}"));
+        Self {
+            start: time::Instant::now(),
+            dir,
+        }
     }
 
     fn get_ty_usage_file(&self, ty: &str) -> PathBuf {
@@ -355,7 +362,7 @@ pub struct GlobalTimeLogger {
     execute: f32,
     fuzz: f32,
     coverage: f32,
-    update: f32
+    update: f32,
 }
 
 impl GlobalTimeLogger {
@@ -368,7 +375,15 @@ impl GlobalTimeLogger {
         log::debug!("Global LLM generate time: {}s", self.req);
     }
 
-    pub fn inc_san(&mut self, syntax: f32, link: f32, execute: f32, fuzz: f32, coverage: f32, update: f32) {
+    pub fn inc_san(
+        &mut self,
+        syntax: f32,
+        link: f32,
+        execute: f32,
+        fuzz: f32,
+        coverage: f32,
+        update: f32,
+    ) {
         self.syntax += syntax;
         self.link += link;
         self.execute += execute;

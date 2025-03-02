@@ -1,5 +1,8 @@
 /// Dynamically infer the constraints of AllocSize, LoopCount and so on influence the performance.
-use std::{ffi::{OsStr, OsString}, ptr::addr_of};
+use std::{
+    ffi::{OsStr, OsString},
+    sync::RwLock,
+};
 
 use eyre::Context;
 use once_cell::sync::OnceCell;
@@ -56,7 +59,11 @@ impl<'a> Transformer<'a> {
 }
 
 impl Executor {
-    pub fn transform_check(&mut self, driver: &Path, corpora: &Path) -> Result<Option<ProgramError>> {
+    pub fn transform_check(
+        &mut self,
+        driver: &Path,
+        corpora: &Path,
+    ) -> Result<Option<ProgramError>> {
         self.deopt
             .prepare_transform_path_for_driver(driver, corpora)?;
 
@@ -70,7 +77,10 @@ impl Executor {
 
         let corpus: PathBuf = [check_dir, "corpus".into()].iter().collect();
         let max_total_time = "-max_total_time=60".to_string();
-        let mut extra_args = vec![corpus.as_os_str().to_os_string(), OsString::from(max_total_time)];
+        let mut extra_args = vec![
+            corpus.as_os_str().to_os_string(),
+            OsString::from(max_total_time),
+        ];
         let dict = self.deopt.get_library_build_dict_path().unwrap();
         if dict.exists() {
             let dict_arg = format!("-dict={}", dict.to_string_lossy());
@@ -131,15 +141,18 @@ pub fn infer_constraint_for_func(
         let max_value = get_integer_ty_max(arg_ty);
         let min_value = get_integer_ty_min(arg_ty);
         let magic_value = format!("({max_value} + {min_value}) / 0x2000");
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &max_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &max_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &min_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &min_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
-        let has_err = infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &magic_value)?;
+        let has_err =
+            infer_constraint_for_func_by_value(func, arg_pos, program_id, deopt, &magic_value)?;
         if has_err.is_some() {
             return Ok(has_err);
         }
@@ -167,7 +180,7 @@ fn infer_constraint_for_func_by_value(
     if let Some(err) = has_err {
         if matches!(err, ProgramError::Hang(_)) {
             let constraint = Constraint::LoopCount(arg_pos);
-            return Ok(Some(constraint))
+            return Ok(Some(constraint));
         }
         if let ProgramError::Execute(err_msg) = err {
             if err_msg.contains("out-of-memory")
@@ -178,9 +191,7 @@ fn infer_constraint_for_func_by_value(
                 let constraint = Constraint::AllocSize(arg_pos);
                 return Ok(Some(constraint));
             }
-            if err_msg.contains("SEGV")
-                || err_msg.contains("overflow")
-            {
+            if err_msg.contains("SEGV") || err_msg.contains("overflow") {
                 let constraint = Constraint::ArrayIndex((usize::MAX, arg_pos));
                 return Ok(Some(constraint));
             }
@@ -304,7 +315,8 @@ fn get_corpora_coverage(
 /// Find a testbed corpora for a program. The testbed corpora should be good enough to cover the program's code.
 pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBuf> {
     log::debug!("Find testbed corpora for program: {:?}", program_path);
-    static mut CACHE: Vec<PathBuf> = Vec::new();
+    static CACHE: OnceCell<RwLock<Vec<PathBuf>>> = OnceCell::new();
+    let cache = CACHE.get_or_init(|| RwLock::new(Vec::new()));
 
     let executor = Executor::new(deopt)?;
     let seed_id = Program::load_from_path(program_path)?.id;
@@ -315,7 +327,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
 
     let mut ranked_files = Vec::new();
 
-    for cache_file in unsafe { addr_of!(CACHE).as_ref().unwrap() } {
+    for cache_file in cache.read().unwrap().iter() {
         let cov = get_corpora_coverage(&fuzzer_code, &fuzzer_cov, cache_file, &executor);
         if let Err(err) = cov {
             log::error!("{err}");
@@ -323,7 +335,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
         }
         let cov = cov?;
         let cov_score = cov.get_total_summary().count_covered_branches();
-        ranked_files.push((cache_file, cov_score));
+        ranked_files.push((cache_file.to_path_buf(), cov_score));
         if !sanitize_by_fuzzer_coverage(&fuzzer_code, deopt, &cov)? {
             return Ok(cache_file.to_path_buf());
         }
@@ -362,9 +374,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
         }
     }
     if let Some(corpora) = max_corpora {
-        unsafe {
-            CACHE.push(corpora.clone());
-        }
+        cache.write().unwrap().push(corpora.clone());
         return Ok(corpora);
     }
     if !ranked_files.is_empty() {
@@ -376,9 +386,9 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
             .clone();
         return Ok(corpora);
     }
-    if unsafe { !CACHE.is_empty() } {
-        let choose = unsafe { CACHE.first().unwrap() };
-        return Ok(choose.to_path_buf());
+    if  !cache.read().unwrap().is_empty()  {
+        let choose = cache.read().unwrap().first().unwrap().to_path_buf() ;
+        return Ok(choose);
     }
     eyre::bail!("Cannot find the corpora that statisfy a good coverage")
 }
@@ -400,7 +410,7 @@ fn dedup_constraint(constraints: Vec<Constraint>) -> Vec<Constraint> {
 #[test]
 fn test_dynamic_infer() -> Result<()> {
     crate::config::Config::init_test("zlib");
-    let deopt = Deopt::new("zlib")?;
+    let deopt = Deopt::new("zlib".to_string())?;
 
     let id = 1429;
     let func = "gzfread";

@@ -19,7 +19,7 @@ use crate::{
     analysis::WorkList,
     ast::{
         self,
-        utils::{is_case_or_default_stmt, is_inner_contain_breakstmt, is_default_stmt},
+        utils::{is_case_or_default_stmt, is_default_stmt, is_inner_contain_breakstmt},
         Clang, CommomHelper,
     },
     program::gadget::is_library_api,
@@ -997,7 +997,7 @@ mod tests {
 
     #[test]
     fn test_cfg_builder() -> Result<()> {
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "test_cfg.cc"]
                 .iter()
@@ -1019,7 +1019,7 @@ mod tests {
     #[test]
     fn test_cfg_max_call_path() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "test_cfg.cc"]
                 .iter()
@@ -1056,7 +1056,7 @@ mod tests {
     #[test]
     fn test_cfg_max_caller() -> Result<()> {
         crate::config::Config::init_test("cJSON");
-        let deopt = Deopt::new("cJSON")?;
+        let deopt = Deopt::new("cJSON".to_string())?;
         let c_test_path: std::path::PathBuf =
             [crate::Deopt::get_crate_dir()?, "testsuites", "test_cfg.cc"]
                 .iter()
@@ -1077,7 +1077,7 @@ mod tests {
     /// test CFGBuilder whther successfully run on all correct seeds.
     #[test]
     fn test_cfg_builder_on_seeds() -> Result<()> {
-        let deopt = crate::Deopt::new("cJSON")?;
+        let deopt = crate::Deopt::new("cJSON".to_string())?;
         let mut out_dir = deopt.get_library_output_dir()?;
         out_dir.push("cfgs");
         crate::deopt::utils::create_dir_if_nonexist(&out_dir)?;
