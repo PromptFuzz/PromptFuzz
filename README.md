@@ -66,6 +66,5 @@ See in [Usage](USAGE.md)
 
 
 ## 🎈Future Works
-- **Custom LLMs support:** Support custom LLMs.
 - **Close-source libraries:** Apply PromptFuzz to close-source libraries by fine tuning LLMs on private code corpus.
 - **Generalization**: Generalize PromptFuzz to binary programs.
