@@ -355,14 +355,14 @@ fn llvm_branches_to_internal(llvm_branches: &Vec<CovBranch>) -> Vec<BranchState>
 #[cfg(test)]
 mod tests {
 
-    use crate::config::get_config_mut;
+    use crate::config::CONFIG_INSTANCE;
 
     use super::*;
 
     #[test]
     fn test_absolute_new_branch() {
         crate::config::Config::init_test("cJSON");
-        let config = get_config_mut();
+        let mut config = CONFIG_INSTANCE.get().unwrap().write().unwrap();
         config.exponent_branch = false;
 
         let branch: Branch = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -387,7 +387,7 @@ mod tests {
     #[test]
     fn test_exponent_new_branch() {
         crate::config::Config::init_test("cJSON");
-        let config = get_config_mut();
+        let mut config = CONFIG_INSTANCE.get().unwrap().write().unwrap();
         config.exponent_branch = true;
 
         let branch: Branch = [0, 0, 0, 0, 0, 0, 0, 0];

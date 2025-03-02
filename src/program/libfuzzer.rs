@@ -902,7 +902,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_transform_lib_fuzzer() -> Result<()> {
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         Config::init_test("zlib");
         let test_dir: PathBuf = [deopt.get_library_output_dir()?, "seeds".into()]
             .iter()
@@ -919,7 +919,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_crash() -> Result<()> {
-        let deopt = Deopt::new("libpcap")?;
+        let deopt = Deopt::new("libpcap".to_string())?;
         Config::init_test("libpcap");
         let fuzzer_dir = deopt.get_library_fuzzer_dir(false)?;
         sanitize_crash::sanitize_crash(&fuzzer_dir, &deopt)?;

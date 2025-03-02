@@ -1041,7 +1041,7 @@ mod tests {
     #[test]
     fn test_parse_type_gadgets() -> Result<()> {
         crate::config::Config::init_test("libtiff");
-        let deopt = Deopt::new("libtiff")?;
+        let deopt = Deopt::new("libtiff".to_string())?;
         let gadgets = parse_type_gadgets(&deopt)?;
         for gadget in gadgets {
             println!("{}", gadget.def)

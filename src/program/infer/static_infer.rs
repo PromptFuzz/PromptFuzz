@@ -3,7 +3,7 @@ use regex::Regex;
 
 use crate::{
     ast::{loc::is_macro_stmt, Clang, CommomHelper, Node, Visitor},
-    config::get_config,
+    config::get_library_name,
     execution::Executor,
     program::gadget::get_func_gadget,
 };
@@ -418,7 +418,7 @@ fn select_max_array_constraint(constraints: Vec<Constraint>) -> Vec<Constraint> 
 /// LLM is possible to assign a string argument with "input_file" name, so check whether this constraint is well inferred
 fn refine_file_name_constraint(func: &str, constraints: Vec<Constraint>) -> Vec<Constraint> {
     let mut retained = Vec::new();
-    let deopt = Deopt::new(&get_config().target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     for constraint in constraints {
         if let Constraint::FileName(arg_pos) = constraint {
             if !check_func_arg_is_file_name(func, arg_pos, &deopt).unwrap() {
@@ -771,7 +771,7 @@ fn strip_prefix(node: &Node) -> &Node {
 #[test]
 fn test_static_infer() -> Result<()> {
     crate::config::Config::init_test("c-ares");
-    let deopt = Deopt::new("c-ares")?;
+    let deopt = Deopt::new("c-ares".to_string())?;
     let mut constraints = APIConstraints::new();
 
     let programs = crate::deopt::utils::read_sort_dir(&deopt.get_library_succ_seed_dir()?)?;

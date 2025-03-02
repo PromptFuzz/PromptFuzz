@@ -1,7 +1,7 @@
 /// Dynamically infer the constraints of AllocSize, LoopCount and so on influence the performance.
 use std::{
     ffi::{OsStr, OsString},
-    ptr::addr_of,
+    sync::RwLock,
 };
 
 use eyre::Context;
@@ -315,7 +315,8 @@ fn get_corpora_coverage(
 /// Find a testbed corpora for a program. The testbed corpora should be good enough to cover the program's code.
 pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBuf> {
     log::debug!("Find testbed corpora for program: {:?}", program_path);
-    static mut CACHE: Vec<PathBuf> = Vec::new();
+    static CACHE: OnceCell<RwLock<Vec<PathBuf>>> = OnceCell::new();
+    let cache = CACHE.get_or_init(|| RwLock::new(Vec::new()));
 
     let executor = Executor::new(deopt)?;
     let seed_id = Program::load_from_path(program_path)?.id;
@@ -326,7 +327,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
 
     let mut ranked_files = Vec::new();
 
-    for cache_file in unsafe { addr_of!(CACHE).as_ref().unwrap() } {
+    for cache_file in cache.read().unwrap().iter() {
         let cov = get_corpora_coverage(&fuzzer_code, &fuzzer_cov, cache_file, &executor);
         if let Err(err) = cov {
             log::error!("{err}");
@@ -334,7 +335,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
         }
         let cov = cov?;
         let cov_score = cov.get_total_summary().count_covered_branches();
-        ranked_files.push((cache_file, cov_score));
+        ranked_files.push((cache_file.to_path_buf(), cov_score));
         if !sanitize_by_fuzzer_coverage(&fuzzer_code, deopt, &cov)? {
             return Ok(cache_file.to_path_buf());
         }
@@ -373,9 +374,7 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
         }
     }
     if let Some(corpora) = max_corpora {
-        unsafe {
-            CACHE.push(corpora.clone());
-        }
+        cache.write().unwrap().push(corpora.clone());
         return Ok(corpora);
     }
     if !ranked_files.is_empty() {
@@ -387,9 +386,9 @@ pub fn find_testbed_corpora(program_path: &Path, deopt: &Deopt) -> Result<PathBu
             .clone();
         return Ok(corpora);
     }
-    if unsafe { !CACHE.is_empty() } {
-        let choose = unsafe { CACHE.first().unwrap() };
-        return Ok(choose.to_path_buf());
+    if  !cache.read().unwrap().is_empty()  {
+        let choose = cache.read().unwrap().first().unwrap().to_path_buf() ;
+        return Ok(choose);
     }
     eyre::bail!("Cannot find the corpora that statisfy a good coverage")
 }
@@ -411,7 +410,7 @@ fn dedup_constraint(constraints: Vec<Constraint>) -> Vec<Constraint> {
 #[test]
 fn test_dynamic_infer() -> Result<()> {
     crate::config::Config::init_test("zlib");
-    let deopt = Deopt::new("zlib")?;
+    let deopt = Deopt::new("zlib".to_string())?;
 
     let id = 1429;
     let func = "gzfread";

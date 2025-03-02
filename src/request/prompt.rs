@@ -53,8 +53,7 @@ pub fn get_prompt_counter_mut() -> &'static mut HashMap<String, u32> {
 }
 
 fn save_prompt_counter(counter: &HashMap<String, u32>) {
-    let config = crate::config::get_config();
-    let deopt = Deopt::new(&config.target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     let counter_path: PathBuf = [
         deopt.get_library_misc_dir().unwrap(),
         "prompt_counter.json".into(),
@@ -175,7 +174,7 @@ impl Prompt {
 pub fn get_sys_gen_message(ctx: String) -> String {
     let deopt = Deopt::new(get_library_name()).unwrap();
     let mut template = config::SYSTEM_GEN_TEMPLATE.to_string();
-    let mut ctx_template = config::SYSTEM_CONTEXT_TEMPLATE.replace("{project}", get_library_name());
+    let mut ctx_template = config::SYSTEM_CONTEXT_TEMPLATE.replace("{project}", &get_library_name());
     if let Some(desc) = deopt.config.desc {
         ctx_template.insert_str(0, &desc);
     }
@@ -228,8 +227,7 @@ pub fn save_prompt(combination: &[&FuncGadget]) {
         .iter()
         .map(|x| x.get_func_name().to_string())
         .collect();
-    let config = crate::config::get_config();
-    let deopt = Deopt::new(&config.target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     let counter_path: PathBuf = [deopt.get_library_misc_dir().unwrap(), "prompt.json".into()]
         .iter()
         .collect();

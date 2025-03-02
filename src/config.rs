@@ -1,4 +1,4 @@
-use std::ptr::{addr_of, addr_of_mut};
+use std::sync::{RwLock, RwLockReadGuard};
 
 use once_cell::sync::OnceCell;
 
@@ -36,7 +36,7 @@ pub const MAX_SAMPLE_LEN: usize = 20;
 
 pub const DEFAULT_COMB_LEN: usize = 5;
 
-pub static mut CONFIG_INSTANCE: Option<Config> = None;
+pub static CONFIG_INSTANCE: OnceCell<RwLock<Config>> = OnceCell::new();
 
 pub const FDP_PATH: &str = "src/extern";
 
@@ -134,34 +134,20 @@ pub fn init_openai_env() {
     OPENAI_PROXY_BASE.set(proxy_base).unwrap();
 }
 
-pub fn get_config() -> &'static Config {
-    if let Some(Some(c)) = unsafe { addr_of!(CONFIG_INSTANCE).as_ref() } {
-        return c;
-    }
-    unsafe {
-        CONFIG_INSTANCE
-            .as_ref()
-            .unwrap_or_else(|| panic!("please parse the config first."))
-    }
+pub fn get_config() -> RwLockReadGuard<'static, Config>{
+    CONFIG_INSTANCE.get().unwrap().read().unwrap()
 }
 
-pub fn get_config_mut() -> &'static mut Config {
-    if let Some(Some(c)) = unsafe { addr_of_mut!(CONFIG_INSTANCE).as_mut() } {
-        return c;
-    }
-    unsafe {
-        CONFIG_INSTANCE
-            .as_mut()
-            .unwrap_or_else(|| panic!("please parse the config first."))
-    }
-}
 
-pub fn get_library_name() -> &'static str {
-    &get_config().target
+pub fn get_library_name() -> String {
+    let config = CONFIG_INSTANCE.get().unwrap().read().unwrap();
+    let target = config.target.clone();
+    target
 }
 
 pub fn get_sample_num() -> u8 {
-    get_config().n_sample
+    let config = CONFIG_INSTANCE.get().unwrap().read().unwrap();
+    config.n_sample
 }
 
 pub fn get_minimize_compile_flag() -> &'static str {
@@ -175,9 +161,7 @@ pub fn get_minimize_compile_flag() -> &'static str {
 }
 pub fn parse_config() -> eyre::Result<()> {
     let config = Config::parse();
-    unsafe {
-        CONFIG_INSTANCE = Some(config);
-    }
+    CONFIG_INSTANCE.set(RwLock::new(config)).unwrap();
     let deopt = Deopt::new(get_library_name())?;
     let data = deopt.get_library_data_dir()?;
     if !data.exists() {
@@ -252,9 +236,7 @@ impl Config {
             disable_power_schedule: false,
             query_budget: 5.00,
         };
-        unsafe {
-            CONFIG_INSTANCE = Some(config);
-        }
+        let _ = CONFIG_INSTANCE.set(RwLock::new(config));
         crate::init_debug_logger().unwrap();
     }
 }

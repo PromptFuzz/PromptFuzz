@@ -171,7 +171,7 @@ mod test {
     #[test]
     fn test_parse_call_graph() -> eyre::Result<()> {
         crate::config::Config::init_test("libvpx");
-        let deopt = Deopt::new("libvpx")?;
+        let deopt = Deopt::new("libvpx".to_string())?;
         let call_graph = get_lib_call_graph();
         call_graph.dump_to_file(&deopt)?;
         Ok(())

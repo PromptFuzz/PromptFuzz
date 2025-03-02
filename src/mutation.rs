@@ -165,7 +165,7 @@ pub fn mutate_prompt(prompt: &mut Prompt, schedule: &Schedule, deopt: &mut Deopt
 #[test]
 fn test_seed_to_prompt() -> eyre::Result<()> {
     crate::config::Config::init_test("cJSON");
-    let mut deopt = Deopt::new("cJSON")?;
+    let mut deopt = Deopt::new("cJSON".to_string())?;
     deopt.load_programs_from_seeds()?;
     let seed_id = 24;
     let seed = deopt.get_seed_from_queue(seed_id);

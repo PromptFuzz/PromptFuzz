@@ -1,7 +1,7 @@
 use std::{process::Child, time::Duration};
 
 use crate::{
-    config::{self, get_config, get_openai_proxy},
+    config::{self, get_openai_proxy},
     is_critical_err,
     program::Program,
     FuzzerError,
@@ -40,6 +40,7 @@ impl Default for OpenAIHanler {
 
 impl Handler for OpenAIHanler {
     fn generate_by_str(&self, prefix: &str) -> eyre::Result<Vec<Program>> {
+        let _ = prefix;
         unimplemented!("deprecated since no usage")
     }
 
@@ -120,8 +121,7 @@ pub mod openai_billing {
     }
 
     fn get_usage_log_path() -> Result<PathBuf> {
-        let config = get_config();
-        let deopt = Deopt::new(&config.target)?;
+        let deopt = Deopt::new(get_library_name())?;
         let misc_path = deopt.get_library_misc_dir()?;
         let prompt_usage_path: PathBuf = [misc_path, "openai_usage".into()].iter().collect();
         Ok(prompt_usage_path)
@@ -215,8 +215,6 @@ fn create_chat_request(
     msgs: Vec<ChatCompletionRequestMessage>,
     stop: Option<String>,
 ) -> Result<CreateChatCompletionRequest> {
-    let config = get_config();
-    let tokens = count_request_token_len(&msgs);
     let mut binding = CreateChatCompletionRequestArgs::default();
     let binding = binding.model(config::get_openai_model_name());
 
@@ -356,10 +354,3 @@ fn strip_code_wrapper(input: &str) -> String {
     ["/*", event, "*/\n", input].concat()
 }
 
-fn count_request_token_len(msgs: &[ChatCompletionRequestMessage]) -> usize {
-    let bpe = tiktoken_rs::cl100k_base().unwrap();
-    let msg_str: String = msgs.iter().map(|x| x.content.to_string()).collect();
-    let tokens = bpe.encode_with_special_tokens(&msg_str);
-    // 11 is align to openai's rule
-    tokens.len() + 11
-}

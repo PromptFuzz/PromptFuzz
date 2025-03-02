@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use self::gadget::FuncGadget;
 use self::serde::{Deserialize, Deserializer};
 use crate::ast::Visitor;
+use crate::config::get_library_name;
 use crate::deopt::Deopt;
 use crate::execution::Executor;
 use crate::feedback::branches::Branch;
@@ -38,8 +39,7 @@ pub fn get_exec_counter_mut() -> &'static mut HashMap<String, u32> {
 }
 
 fn save_exec_counter(counter: &HashMap<String, u32>) {
-    let config = crate::config::get_config();
-    let deopt = Deopt::new(&config.target).unwrap();
+    let deopt = Deopt::new(get_library_name()).unwrap();
     let counter_path: PathBuf = [
         deopt.get_library_misc_dir().unwrap(),
         "exec_counter.json".into(),

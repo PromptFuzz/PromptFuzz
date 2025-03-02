@@ -113,7 +113,7 @@ enum ADGKind {
 }
 
 pub fn transform(
-    project: &'static str,
+    project: String,
     program_path: &Path,
     use_cons: bool,
     corpora: Option<PathBuf>,
@@ -123,14 +123,14 @@ pub fn transform(
     Ok(())
 }
 
-pub fn check(project: &'static str, program: &Path) -> Result<Option<ProgramError>> {
+pub fn check(project: String, program: &Path) -> Result<Option<ProgramError>> {
     let deopt = Deopt::new(project)?;
     let executor = Executor::new(&deopt)?;
     let has_err = executor.check_program_is_correct(program)?;
     Ok(has_err)
 }
 
-pub fn recheck(project: &'static str) -> Result<()> {
+pub fn recheck(project: String) -> Result<()> {
     let mut deopt = Deopt::new(project)?;
     let mut executor = Executor::new(&deopt)?;
     executor.recheck_seed(&mut deopt)?;
@@ -138,7 +138,7 @@ pub fn recheck(project: &'static str) -> Result<()> {
 }
 
 pub fn fuzzer_run(
-    project: &'static str,
+    project: String,
     run_exploit: bool,
     time_limit: Option<u64>,
     minimize: Option<bool>,
@@ -149,7 +149,7 @@ pub fn fuzzer_run(
     Ok(())
 }
 
-fn collect_cov(project: &'static str, kind: &CoverageKind, exploit: bool) -> ExitCode {
+fn collect_cov(project: String, kind: &CoverageKind, exploit: bool) -> ExitCode {
     let deopt: Deopt = Deopt::new(project).unwrap();
     let fuzzers_dir = if exploit {
         deopt.get_library_fuzzer_dir(true).unwrap()
@@ -186,7 +186,7 @@ fn collect_cov(project: &'static str, kind: &CoverageKind, exploit: bool) -> Exi
 }
 
 fn fuse_fuzzer(
-    project: &'static str,
+    project: String,
     seed_dir: &Option<PathBuf>,
     n_fuzzer: usize,
     core: usize,
@@ -214,7 +214,7 @@ fn fuse_fuzzer(
     Ok(())
 }
 
-fn compile_fuzzer(project: &'static str, kind: Compile, exploit: bool) -> Result<()> {
+fn compile_fuzzer(project: String, kind: Compile, exploit: bool) -> Result<()> {
     let deopt = Deopt::new(project)?;
     let executor = Executor::new(&deopt)?;
     for dir in std::fs::read_dir(deopt.get_library_fuzzer_dir(exploit)?)? {
@@ -235,7 +235,7 @@ fn compile_fuzzer(project: &'static str, kind: Compile, exploit: bool) -> Result
     Ok(())
 }
 
-fn archive(project: &'static str, suffix: &Option<String>) -> Result<()> {
+fn archive(project: String, suffix: &Option<String>) -> Result<()> {
     let current_date = Local::now().format("%Y-%m-%d").to_string();
 
     let out: String = if let Some(suffix) = suffix {
@@ -244,7 +244,7 @@ fn archive(project: &'static str, suffix: &Option<String>) -> Result<()> {
         format!("{project}_{current_date}.tar.gz")
     };
 
-    let deopt = Deopt::new(project)?;
+    let deopt = Deopt::new(project.clone())?;
     let driver_dir = deopt.get_library_driver_dir()?;
     if driver_dir.exists() {
         std::fs::remove_dir_all(driver_dir)?;
@@ -275,7 +275,7 @@ fn archive(project: &'static str, suffix: &Option<String>) -> Result<()> {
         .arg("-C")
         .arg(Deopt::get_crate_output_dir()?)
         .arg(format!("--exclude={project}/work"))
-        .arg(project)
+        .arg(&project)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .output()?;
@@ -293,7 +293,7 @@ fn archive(project: &'static str, suffix: &Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn build_adg(project: &'static str, kind: &ADGKind, target: &Option<PathBuf>) -> Result<()> {
+fn build_adg(project: String, kind: &ADGKind, target: &Option<PathBuf>) -> Result<()> {
     let deopt = Deopt::new(project)?;
     match kind {
         ADGKind::Sparse => {
@@ -324,7 +324,7 @@ fn build_adg(project: &'static str, kind: &ADGKind, target: &Option<PathBuf>) ->
     Ok(())
 }
 
-fn constraint_infer(project: &'static str) -> Result<()> {
+fn constraint_infer(project: String) -> Result<()> {
     let deopt = Deopt::new(project)?;
     let dir = deopt.get_library_succ_seed_dir()?;
     let programs = deopt::utils::read_sort_dir(&dir)?;
@@ -332,7 +332,7 @@ fn constraint_infer(project: &'static str) -> Result<()> {
     Ok(())
 }
 
-fn sanitize_crash(project: &'static str, exploit: bool) -> Result<()> {
+fn sanitize_crash(project: String, exploit: bool) -> Result<()> {
     let deopt = Deopt::new(project)?;
     let fuzzer_dir = deopt.get_library_fuzzer_dir(exploit)?;
     sanitize_crash::sanitize_crash(&fuzzer_dir, &deopt)?;
@@ -342,7 +342,7 @@ fn sanitize_crash(project: &'static str, exploit: bool) -> Result<()> {
 fn main() -> ExitCode {
     let config = Config::parse();
     prompt_fuzz::config::Config::init_test(&config.project);
-    let project: &'static str = Box::leak(config.project.clone().into_boxed_str());
+    let project = config.project.clone();
     match &config.command {
         Commands::Check { program } => {
             let res: Option<ProgramError> = check(project, program).unwrap();

@@ -18,7 +18,7 @@ use self::utils::create_dir_if_nonexist;
 
 #[derive(Default, Clone)]
 pub struct Deopt {
-    pub project_name: &'static str,
+    pub project_name: String,
     pub seed_queue: VecDeque<Program>,
     pub seed_id: usize,
     pub config: LibConfig,
@@ -135,7 +135,7 @@ impl Deopt {
         Ok(name)
     }
 
-    pub fn new(project_name: &'static str) -> Result<Self> {
+    pub fn new(project_name: String) -> Result<Self> {
         let mut deopt = Deopt::default();
         deopt.project_name = project_name;
         deopt.config = deopt.parse_lib_config()?;
@@ -160,7 +160,7 @@ impl Deopt {
 
     /// get the data directory of the library under test.
     pub fn get_library_data_dir(&self) -> Result<PathBuf> {
-        let data_dir: PathBuf = [Deopt::get_crate_dir()?, "data", self.project_name]
+        let data_dir: PathBuf = [Deopt::get_crate_dir()?, "data", &self.project_name]
             .iter()
             .collect();
         Ok(data_dir)
@@ -181,7 +181,7 @@ impl Deopt {
     /// get the library's gadget path.
     pub fn get_library_gadget_path(&self) -> Result<PathBuf> {
         let mut gadget_path = self.get_library_data_dir()?;
-        gadget_path.push(self.project_name);
+        gadget_path.push(&self.project_name);
         gadget_path.set_extension("gadget");
         Ok(gadget_path)
     }
@@ -217,7 +217,7 @@ impl Deopt {
     /// get the output directory of the library under test.
     pub fn get_library_output_dir(&self) -> Result<PathBuf> {
         let mut p_out_dir: PathBuf = Self::get_crate_output_dir()?;
-        p_out_dir.push(self.project_name);
+        p_out_dir.push(&self.project_name);
         utils::create_dir_if_nonexist(&p_out_dir)?;
         Ok(p_out_dir)
     }
@@ -834,7 +834,7 @@ mod tests {
     #[test]
     fn test_update_prompt_queue() -> Result<()> {
         config::Config::init_test("cJSON");
-        let mut deopt = Deopt::new("cJSON")?;
+        let mut deopt = Deopt::new("cJSON".to_string())?;
 
         // load the first seed.
         let seed_id_0 = 29;

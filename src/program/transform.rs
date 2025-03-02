@@ -1621,7 +1621,7 @@ mod tests {
     #[test]
     fn test_transform_without_constraint() -> Result<()> {
         crate::config::Config::init_test("libjpeg-turbo");
-        let deopt = Deopt::new("libjpeg-turbo")?;
+        let deopt = Deopt::new("libjpeg-turbo".to_string())?;
         let test_file: PathBuf = [
             Deopt::get_crate_dir()?,
             "testsuites".into(),
@@ -1642,7 +1642,7 @@ mod tests {
     #[test]
     fn test_transform_with_constraint() -> Result<()> {
         crate::config::Config::init_test("zlib");
-        let deopt = Deopt::new("zlib")?;
+        let deopt = Deopt::new("zlib".to_string())?;
         let test_file: PathBuf = [
             Deopt::get_crate_dir()?,
             "testsuites".into(),

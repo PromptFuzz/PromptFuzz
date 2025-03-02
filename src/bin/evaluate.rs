@@ -4,9 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use eyre::Result;
 use plotters::prelude::*;
 use prompt_fuzz::{
-    deopt::{self, Deopt},
-    execution::Executor,
-    program::Program,
+    deopt::{self, Deopt}, execution::Executor, program::Program
 };
 
 fn get_bench_dir() -> Result<PathBuf> {
@@ -24,7 +22,7 @@ fn get_acc_bench_dir() -> Result<PathBuf> {
 
 fn get_library_acc_bench_dir(deopt: &Deopt) -> Result<PathBuf> {
     let mut acc_bench = get_acc_bench_dir()?;
-    acc_bench.push(deopt.project_name);
+    acc_bench.push(&deopt.project_name);
     deopt::utils::create_dir_if_nonexist(&acc_bench)?;
     Ok(acc_bench)
 }
@@ -252,7 +250,7 @@ fn plot_acc_coverage_comparison(deopt: &Deopt) -> Result<()> {
     Ok(())
 }
 
-fn coverage(project: &'static str, kind: &ACCKind, is_rand_bench: bool) -> Result<()> {
+fn coverage(project: String, kind: &ACCKind, is_rand_bench: bool) -> Result<()> {
     let deopt = Deopt::new(project)?;
     match kind {
         ACCKind::Collect => collect_accumulation_coverage(&deopt, is_rand_bench)?,
@@ -268,10 +266,8 @@ fn coverage(project: &'static str, kind: &ACCKind, is_rand_bench: bool) -> Resul
 fn main() -> Result<()> {
     let config = Config::parse();
     prompt_fuzz::config::Config::init_test(&config.project);
-    let project: &'static str = Box::leak(config.project.clone().into_boxed_str());
-
     match &config.command {
-        Commands::Coverage { kind, rand_bench } => coverage(project, kind, *rand_bench)?,
+        Commands::Coverage { kind, rand_bench } => coverage(config.project.clone(), kind, *rand_bench)?,
     }
     Ok(())
 }
